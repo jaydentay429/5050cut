@@ -911,12 +911,14 @@ export function createScene(canvas) {
     );
   }
 
+  const heatGlow = new THREE.Color().setHSL(0.06, 0.75, 0.42);
+
   function setHeat(combo) {
     if (!state.materials) return;
-    const intensity = Math.min(0.4, Math.max(0, combo) * 0.055);
-    const color = new THREE.Color().setHSL(0.06, 0.75, 0.42);
+    const intensity = Math.min(0.18, Math.max(0, combo) * 0.022);
     for (const mat of [state.materials.side, state.materials.face, state.materials.outer]) {
-      mat.emissive.copy(color);
+      /** 深色/冷色物体（如茄子）直接叠加暖橙会糊成一片，先和材质自身颜色混一下，弱化色相冲突。 */
+      mat.emissive.copy(mat.color).lerp(heatGlow, 0.25);
       mat.emissiveIntensity = intensity;
     }
   }
