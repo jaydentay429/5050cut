@@ -198,6 +198,7 @@ export function createScene(canvas) {
     shakeMag: 0,
     fatalSplit: false,
     perfectSplit: false,
+    heroSplit: false,
     clock: 0,
     hero: 0,
     flash: 0,
@@ -229,6 +230,7 @@ export function createScene(canvas) {
     state.type = null;
     state.perfectSplit = false;
     state.fatalSplit = false;
+    state.heroSplit = false;
     state.hero = 0;
     state.flash = 0;
     state.bodies = null;
@@ -289,7 +291,7 @@ export function createScene(canvas) {
     }
   }
 
-  function split(cut, perfect = false, fatal = false) {
+  function split(cut, perfect = false, fatal = false, milestone = false) {
     if (!state.type || !state.whole) return;
     const normal = new THREE.Vector3(cut.nx, cut.ny, cut.nz).normalize();
     const point = new THREE.Vector3(cut.point.x, cut.point.y, cut.point.z);
@@ -315,6 +317,7 @@ export function createScene(canvas) {
     state.right = right;
     state.perfectSplit = perfect;
     state.fatalSplit = fatal;
+    state.heroSplit = perfect || milestone;
     objectRoot.add(state.left, state.right);
     syncClipPlanes();
     state.shakeMag = perfect || fatal ? CONFIG.feedback.perfectShake : CONFIG.feedback.shake;
@@ -963,7 +966,7 @@ export function createScene(canvas) {
     if (state.shake > 0) {
       state.shake = Math.max(0, state.shake - fxDt * 4.5);
     }
-    if (state.perfectSplit) {
+    if (state.heroSplit) {
       state.hero = Math.min(1, state.hero + fxDt * 1.7);
     } else {
       state.hero = Math.max(0, state.hero - dt * 2.4);

@@ -380,7 +380,7 @@ export class Game {
       codexNew: unlock.first,
       comboTitle: comboTitle(next.combo),
     };
-    this.scene.split(worldCut, perfect, this.pendingGameOver);
+    this.scene.split(worldCut, perfect, this.pendingGameOver, Boolean(comboTitle(next.combo)));
     this.scene.setHeat(next.combo);
 
     if (perfect) {
