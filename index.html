@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>精准切割</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <canvas id="game"></canvas>
+    <script>
+      window.addEventListener("error", function (event) {
+        if (document.getElementById("boot-error")) return;
+        var el = document.createElement("pre");
+        el.id = "boot-error";
+        el.style.cssText =
+          "position:fixed;inset:16px;z-index:99;margin:0;background:#2a1210;color:#ffd4c8;padding:16px;white-space:pre-wrap;overflow:auto;font:13px ui-monospace,monospace";
+        el.textContent = (event.error && event.error.stack) || event.message || String(event);
+        document.body.appendChild(el);
+      });
+    </script>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
