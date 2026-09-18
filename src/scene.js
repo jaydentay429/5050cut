@@ -198,6 +198,7 @@ export function createScene(canvas) {
     shakeMag: 0,
     fatalSplit: false,
     perfectSplit: false,
+    heroSplit: false,
     clock: 0,
     hero: 0,
     flash: 0,
@@ -229,6 +230,7 @@ export function createScene(canvas) {
     state.type = null;
     state.perfectSplit = false;
     state.fatalSplit = false;
+    state.heroSplit = false;
     state.hero = 0;
     state.flash = 0;
     state.bodies = null;
@@ -289,7 +291,7 @@ export function createScene(canvas) {
     }
   }
 
-  function split(cut, perfect = false, fatal = false) {
+  function split(cut, perfect = false, fatal = false, milestone = false) {
     if (!state.type || !state.whole) return;
     const normal = new THREE.Vector3(cut.nx, cut.ny, cut.nz).normalize();
     const point = new THREE.Vector3(cut.point.x, cut.point.y, cut.point.z);
@@ -315,6 +317,7 @@ export function createScene(canvas) {
     state.right = right;
     state.perfectSplit = perfect;
     state.fatalSplit = fatal;
+    state.heroSplit = perfect || milestone;
     objectRoot.add(state.left, state.right);
     syncClipPlanes();
     state.shakeMag = perfect || fatal ? CONFIG.feedback.perfectShake : CONFIG.feedback.shake;
@@ -911,12 +914,14 @@ export function createScene(canvas) {
     );
   }
 
+  const heatGlow = new THREE.Color().setHSL(0.06, 0.75, 0.42);
+
   function setHeat(combo) {
     if (!state.materials) return;
-    const intensity = Math.min(0.4, Math.max(0, combo) * 0.055);
-    const color = new THREE.Color().setHSL(0.06, 0.75, 0.42);
+    const intensity = Math.min(0.18, Math.max(0, combo) * 0.022);
     for (const mat of [state.materials.side, state.materials.face, state.materials.outer]) {
-      mat.emissive.copy(color);
+      /** 深色/冷色物体（如茄子）直接叠加暖橙会糊成一片，先和材质自身颜色混一下，弱化色相冲突。 */
+      mat.emissive.copy(mat.color).lerp(heatGlow, 0.25);
       mat.emissiveIntensity = intensity;
     }
   }
@@ -961,7 +966,7 @@ export function createScene(canvas) {
     if (state.shake > 0) {
       state.shake = Math.max(0, state.shake - fxDt * 4.5);
     }
-    if (state.perfectSplit) {
+    if (state.heroSplit) {
       state.hero = Math.min(1, state.hero + fxDt * 1.7);
     } else {
       state.hero = Math.max(0, state.hero - dt * 2.4);

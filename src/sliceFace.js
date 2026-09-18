@@ -296,29 +296,6 @@ function paintBreadSide(ctx) {
   addNoise(ctx, 22);
 }
 
-function paintMelonFace(ctx) {
-  const cx = SIZE / 2;
-  const cy = SIZE / 2;
-  fill(ctx, "#1f6b32");
-  ctx.beginPath();
-  ctx.arc(cx, cy, SIZE * 0.46, 0, Math.PI * 2);
-  ctx.fillStyle = "#f2d6de";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, SIZE * 0.4, 0, Math.PI * 2);
-  ctx.fillStyle = "#d42a3b";
-  ctx.fill();
-  ctx.fillStyle = "#1a120c";
-  for (let i = 0; i < 14; i += 1) {
-    const a = (i / 14) * Math.PI * 2;
-    const r = 28 + (i % 3) * 18;
-    ctx.beginPath();
-    ctx.ellipse(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 5, 3, a, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  addNoise(ctx, 16);
-}
-
 function paintLemonFace(ctx) {
   paintFlesh(ctx, "#e2b22a", "#fff6b0", {
     segments: 10,
@@ -326,23 +303,6 @@ function paintLemonFace(ctx) {
     core: "#fffce0",
     coreR: 0.1,
   });
-}
-
-function paintMelonSide(ctx) {
-  const gradient = ctx.createLinearGradient(0, 0, SIZE, 0);
-  gradient.addColorStop(0, "#1a5a28");
-  gradient.addColorStop(0.5, "#3d9a48");
-  gradient.addColorStop(1, "#1a5a28");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-  ctx.lineWidth = 10;
-  for (let x = 10; x < SIZE; x += 22) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + 8, SIZE);
-    ctx.stroke();
-  }
 }
 
 function paintLemonSide(ctx) {
@@ -457,93 +417,6 @@ function paintOnigiriSide(ctx) {
   addNoise(ctx, 18);
 }
 
-function paintStarfruitFace(ctx) {
-  const cx = SIZE / 2;
-  const cy = SIZE / 2;
-  fill(ctx, "#7a9a28");
-  ctx.beginPath();
-  for (let i = 0; i < 10; i += 1) {
-    const r = i % 2 === 0 ? SIZE * 0.46 : SIZE * 0.18;
-    const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
-    const x = cx + Math.cos(a) * r;
-    const y = cy + Math.sin(a) * r;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.fillStyle = "#e8f07a";
-  ctx.fill();
-  ctx.fillStyle = "#c8d44a";
-  ctx.beginPath();
-  ctx.arc(cx, cy, 16, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#6a4a18";
-  for (let i = 0; i < 5; i += 1) {
-    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
-    ctx.beginPath();
-    ctx.arc(cx + Math.cos(a) * 28, cy + Math.sin(a) * 28, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  addNoise(ctx, 14);
-}
-
-function paintStarfruitSide(ctx) {
-  const gradient = ctx.createLinearGradient(0, 0, SIZE, 0);
-  gradient.addColorStop(0, "#7aa030");
-  gradient.addColorStop(0.5, "#c6d84a");
-  gradient.addColorStop(1, "#7aa030");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  ctx.strokeStyle = "rgba(255, 255, 210, 0.2)";
-  ctx.lineWidth = 10;
-  for (let x = 8; x < SIZE; x += 36) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + 12, SIZE);
-    ctx.stroke();
-  }
-  addNoise(ctx, 16);
-}
-
-function paintFishFace(ctx) {
-  const cx = SIZE / 2;
-  const cy = SIZE / 2;
-  fill(ctx, "#d4786a");
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, SIZE * 0.46, SIZE * 0.34, 0, 0, Math.PI * 2);
-  ctx.fillStyle = "#f3c2ae";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-  ctx.lineWidth = 3;
-  for (let i = -3; i <= 3; i += 1) {
-    ctx.beginPath();
-    ctx.ellipse(cx + i * 22, cy, 16, 68, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.fillStyle = "#f7efe4";
-  ctx.fillRect(cx - 8, 36, 16, SIZE - 72);
-  ctx.fillStyle = "#2a2018";
-  ctx.fillRect(cx - 3, 48, 6, SIZE - 96);
-  addNoise(ctx, 14);
-}
-
-function paintFishSide(ctx) {
-  const gradient = ctx.createLinearGradient(0, 0, 0, SIZE);
-  gradient.addColorStop(0, "#e8a070");
-  gradient.addColorStop(0.5, "#d4784a");
-  gradient.addColorStop(1, "#c45a3a");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  ctx.strokeStyle = "rgba(255, 230, 200, 0.28)";
-  ctx.lineWidth = 2;
-  for (let y = 16; y < SIZE; y += 14) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.quadraticCurveTo(SIZE / 2, y + 6, SIZE, y);
-    ctx.stroke();
-  }
-  addNoise(ctx, 16);
-}
 
 function paintBananaFace(ctx) {
   paintFlesh(ctx, "#d4a028", "#fff4b8", { core: "#fffce0", coreR: 0.18 });

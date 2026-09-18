@@ -330,6 +330,13 @@ export function play(name, extra) {
     return;
   }
 
+  if (name === "shield") {
+    tone({ freq: 660, freqEnd: 880, duration: 0.14, type: "triangle", gain: 0.08 });
+    tone({ freq: 880, freqEnd: 1320, duration: 0.22, type: "sine", gain: 0.07, delay: 0.06 });
+    noise({ duration: 0.12, gain: 0.05, freq: 2800 });
+    return;
+  }
+
   if (name === "gameover") {
     tone({ freq: 240, freqEnd: 80, duration: 0.42, type: "square", gain: 0.07 });
     return;

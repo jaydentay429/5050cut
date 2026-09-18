@@ -443,7 +443,21 @@ function drawHud(ctx, width, height, model) {
   }
   ctx.fillStyle = comboHot ? spec.accent : spec.cream;
   ctx.font = font(Math.max(15, comboHot ? 20 * s : 17 * s), "800");
-  ctx.fillText(`连击  ${model.combo}`, pad, comboY);
+  const comboText = `连击  ${model.combo}`;
+  ctx.fillText(comboText, pad, comboY);
+  if (model.hasShield) {
+    const tw = ctx.measureText(comboText).width;
+    const dotR = Math.max(3.5, 4 * s);
+    const dotX = pad + tw + Math.max(12, 14 * s);
+    const dotY = comboY + Math.max(9, 11 * s);
+    ctx.save();
+    ctx.fillStyle = spec.accent;
+    ctx.globalAlpha = 0.65 + Math.sin(model.time * 3) * 0.25;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   const barY = comboY + Math.max(22, 26 * s);
   const barW = Math.max(92, 108 * s);
@@ -512,7 +526,7 @@ function drawFeedback(ctx, width, height, model) {
   if (!model.lastResult) return;
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
-  const { baseScore, gained, grade, combo, miss, ratio, fatal } = model.lastResult;
+  const { baseScore, gained, grade, combo, miss, fatal, shielded } = model.lastResult;
   const t = model.feedbackT;
   const perfect = !miss && baseScore >= CONFIG.score.perfectScore;
   const milestone = !miss && Boolean(model.lastResult.comboTitle);
@@ -610,7 +624,11 @@ function drawFeedback(ctx, width, height, model) {
       ctx.fillText("收入图鉴", 0, Math.max(88, 106 * s));
     }
 
-    if (nearMiss) {
+    if (shielded) {
+      ctx.fillStyle = spec.accent;
+      ctx.font = font(Math.max(15, 18 * s), "800");
+      ctx.fillText("护盾生效，这局保住了", 0, Math.max(94, 112 * s));
+    } else if (nearMiss) {
       ctx.fillStyle = spec.accent;
       ctx.font = font(Math.max(15, 18 * s), "800");
       ctx.fillText("就差一点点", 0, Math.max(94, 112 * s));

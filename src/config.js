@@ -153,6 +153,8 @@ export const CONFIG = {
     comboMinScore: 90,
     comboBonusPerStack: 0.12,
     perfectScore: 98,
+    /** 每局一次：断连击的那一刀如果分数不算太差（>= 此分），护盾抵消本该到来的game over（连击依旧清零）。 */
+    shieldMinScore: 70,
   },
 
   feedback: {
@@ -183,7 +185,7 @@ export const CONFIG = {
 
   ui: {
     title: "精准切割",
-    subtitle: "一天六站，斜着竖着横着切体积对半。连击断了这局就结束",
+    subtitle: "一天六站，斜着竖着横着切体积对半。连击断了这局就结束，每局有一次护盾能保命",
     cream: "#f3e6d0",
     creamDim: "rgba(243, 230, 208, 0.55)",
     accent: "#e07a3d",
