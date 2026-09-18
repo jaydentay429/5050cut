@@ -155,47 +155,6 @@ function addLatheBody(group, type, length, materials) {
   if (r1 > 0.035) addFaceDisk(group, r1, length / 2, true, materials.outer);
 }
 
-function splitLathe(type, length, ratio, materials) {
-  const t = clamp(ratio, 0.05, 0.95);
-  const cutX = -length / 2 + length * t;
-  const leftLen = length * t;
-  const rightLen = length * (1 - t);
-  const rCut = radiusAt(type, t, length);
-
-  const left = new THREE.Group();
-  const right = new THREE.Group();
-
-  const leftMesh = enableShadow(new THREE.Mesh(latheAlongX(profilePoints(type, length, 0, t)), materials.side));
-  if (type === "apple") leftMesh.scale.y = 0.88;
-  if (type === "orange") leftMesh.scale.y = 0.92;
-  if (type === "bread") {
-    leftMesh.scale.y = 1.18;
-    leftMesh.scale.z = 0.78;
-  }
-  leftMesh.position.x = -length / 2 + leftLen / 2;
-  left.add(leftMesh);
-  addFaceDisk(left, rCut, cutX, true, materials.face);
-  if (radiusAt(type, 0, length) > 0.035) {
-    addFaceDisk(left, radiusAt(type, 0, length), -length / 2, false, materials.outer);
-  }
-
-  const rightMesh = enableShadow(new THREE.Mesh(latheAlongX(profilePoints(type, length, t, 1)), materials.side));
-  if (type === "apple") rightMesh.scale.y = 0.88;
-  if (type === "orange") rightMesh.scale.y = 0.92;
-  if (type === "bread") {
-    rightMesh.scale.y = 1.18;
-    rightMesh.scale.z = 0.78;
-  }
-  rightMesh.position.x = cutX + rightLen / 2;
-  right.add(rightMesh);
-  addFaceDisk(right, rCut, cutX, false, materials.face);
-  if (radiusAt(type, 1, length) > 0.035) {
-    addFaceDisk(right, radiusAt(type, 1, length), length / 2, true, materials.outer);
-  }
-
-  return { left, right };
-}
-
 function stemMat() {
   return new THREE.MeshStandardMaterial({ color: "#4a2e18", roughness: 0.82 });
 }
@@ -607,40 +566,6 @@ function addBox(group, length, type, materials) {
   group.add(mesh);
 }
 
-function splitBox(length, ratio, type, materials) {
-  const spec = CONFIG.catalog[type];
-  const t = clamp(ratio, 0.04, 0.96);
-  const leftLen = length * t;
-  const rightLen = length * (1 - t);
-  const left = new THREE.Group();
-  const right = new THREE.Group();
-  const leftMesh = enableShadow(
-    new THREE.Mesh(new THREE.BoxGeometry(leftLen, spec.height, spec.depth), [
-      materials.face,
-      materials.outer,
-      materials.side,
-      materials.side,
-      materials.side,
-      materials.side,
-    ]),
-  );
-  leftMesh.position.x = -length / 2 + leftLen / 2;
-  left.add(leftMesh);
-  const rightMesh = enableShadow(
-    new THREE.Mesh(new THREE.BoxGeometry(rightLen, spec.height, spec.depth), [
-      materials.outer,
-      materials.face,
-      materials.side,
-      materials.side,
-      materials.side,
-      materials.side,
-    ]),
-  );
-  rightMesh.position.x = length / 2 - rightLen / 2;
-  right.add(rightMesh);
-  return { left, right };
-}
-
 function bananaCurve(length, bend) {
   const radius = CONFIG.catalog.banana.radius;
   const by = bend * 0.9;
@@ -717,29 +642,6 @@ function makeBananaGeometry(curve, radius, t0 = 0, t1 = 1) {
   return geo;
 }
 
-function bananaCapGeometry(radius) {
-  const shape = new THREE.Shape();
-  const radial = 24;
-  for (let j = 0; j <= radial; j += 1) {
-    const a = (j / radial) * Math.PI * 2 + Math.PI / 2;
-    const rr = radius * bananaLobe(a);
-    const x = Math.cos(a) * rr;
-    const y = Math.sin(a) * rr;
-    if (j === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  }
-  return new THREE.ShapeGeometry(shape);
-}
-
-function addBananaCap(group, curve, t, material, radius) {
-  const pos = curve.getPoint(t);
-  const tan = curve.getTangent(t).normalize();
-  const mesh = new THREE.Mesh(bananaCapGeometry(Math.max(0.02, radius)), material);
-  mesh.position.copy(pos);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan);
-  group.add(mesh);
-}
-
 function addBananaStem(group, curve) {
   const pos = curve.getPoint(0);
   const tan = curve.getTangent(0).normalize();
@@ -763,21 +665,6 @@ function addBanana(group, length, materials) {
   const body = enableShadow(new THREE.Mesh(makeBananaGeometry(curve, spec.radius), materials.side));
   group.add(body);
   addBananaStem(group, curve);
-}
-
-function splitBanana(length, ratio, materials) {
-  const spec = CONFIG.catalog.banana;
-  const t = clamp(ratio, 0.06, 0.94);
-  const curve = bananaCurve(length, spec.bend);
-  const cutR = bananaRadiusAt(t, spec.radius);
-  const left = new THREE.Group();
-  const right = new THREE.Group();
-  left.add(enableShadow(new THREE.Mesh(makeBananaGeometry(curve, spec.radius, 0, t), materials.side)));
-  right.add(enableShadow(new THREE.Mesh(makeBananaGeometry(curve, spec.radius, t, 1), materials.side)));
-  addBananaCap(left, curve, t, materials.face, cutR);
-  addBananaCap(right, curve, t, materials.face, cutR);
-  addBananaStem(left, curve);
-  return { left, right };
 }
 
 function addCarrotTops(group, length) {
@@ -1097,22 +984,6 @@ function addSunflowerHead(group, length) {
   addLeaf(group, -length * 0.1, 0.05, 0.05, 0.5, 1.3, "#2f7a32");
 }
 
-const LATHE_TYPES = new Set([
-  "apple",
-  "pear",
-  "orange",
-  "lemon",
-  "strawberry",
-  "tulip",
-  "daisy",
-  "sunflower",
-  "carrot",
-  "cucumber",
-  "corn",
-  "eggplant",
-  "bread",
-]);
-
 export function createWholeObject(type, length, materials) {
   const group = new THREE.Group();
   if (type === "banana") addBanana(group, length, materials);
@@ -1157,45 +1028,6 @@ export function createWholeObject(type, length, materials) {
     depth: objectDepth(type, length),
   };
   return group;
-}
-
-export function createSplitObject(type, length, ratio, materials) {
-  let halves;
-  if (type === "banana") halves = splitBanana(length, ratio, materials);
-  else if (type === "ruler" || type === "eraser" || type === "chocolate" || type === "onigiri" || type === "popsicle" || type === "cheese")
-    halves = splitBox(length, ratio, type, materials);
-  else halves = splitLathe(type, length, ratio, materials);
-
-  if (type === "apple") {
-    if (ratio >= 0.5) addAppleBits(halves.left, length);
-    else addAppleBits(halves.right, length);
-  }
-  if (type === "pear" && ratio > 0.08) addPearBits(halves.left, length);
-  if (type === "orange") {
-    if (ratio >= 0.5) addOrangeBits(halves.left, length);
-    else addOrangeBits(halves.right, length);
-  }
-  if (type === "rose" && ratio < 0.86) addRosePetals(halves.right, length, materials);
-  if (type === "tulip") {
-    if (ratio < 0.72) addTulipBloom(halves.right, length, materials);
-    else addTulipBloom(halves.left, length, materials);
-  }
-  if (type === "daisy") {
-    if (ratio < 0.86) addDaisyHead(halves.right, length);
-    else addDaisyHead(halves.left, length);
-  }
-  if (type === "sunflower") {
-    if (ratio < 0.82) addSunflowerHead(halves.right, length);
-    else addSunflowerHead(halves.left, length);
-  }
-  if (type === "carrot" && ratio > 0.1) addCarrotTops(halves.left, length);
-  if (type === "corn" && ratio > 0.1) addCornHusk(halves.left, length);
-  if (type === "eggplant" && ratio > 0.1) addEggplantCap(halves.left, length);
-
-  const hy = objectHeight(type, length) / 2;
-  halves.left.position.y = hy;
-  halves.right.position.y = hy;
-  return halves;
 }
 
 function planeBasis(normal) {
@@ -1371,5 +1203,3 @@ export function objectExtents(type, length) {
     depth: objectDepth(type, length),
   };
 }
-
-export { LATHE_TYPES };
