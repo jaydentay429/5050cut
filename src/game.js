@@ -455,7 +455,7 @@ export class Game {
 
   feedbackDuration() {
     if (this.lastResult?.fatal) return CONFIG.feedback.breakDuration;
-    if (this.lastResult?.perfect) return CONFIG.feedback.perfectDuration;
+    if (this.lastResult?.perfect || this.lastResult?.shielded) return CONFIG.feedback.perfectDuration;
     return CONFIG.feedback.duration;
   }
 
