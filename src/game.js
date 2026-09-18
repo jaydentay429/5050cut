@@ -65,6 +65,7 @@ export class Game {
     this.codexTheme = "fruit";
     this.menuCycleAt = 0;
     this.hideHud = false;
+    this.usedShield = false;
   }
 
   catalogTotal() {
@@ -246,6 +247,7 @@ export class Game {
     this.themeCuts = 0;
     this.themeFlash = 0;
     this.hideHud = false;
+    this.usedShield = false;
     this.state = PLAYING;
     this.scene.setInspect(false);
     this.spawnObject(0);
@@ -340,6 +342,13 @@ export class Game {
     this.bestCut = Math.max(this.bestCut, baseScore);
     this.pendingGameOver = hadCombo && next.combo === 0;
 
+    let shielded = false;
+    if (this.pendingGameOver && !this.usedShield && baseScore >= CONFIG.score.shieldMinScore) {
+      this.usedShield = true;
+      this.pendingGameOver = false;
+      shielded = true;
+    }
+
     const unlock = unlockCodexEntry(this.lastType, baseScore);
     this.codex = unlock.data;
 
@@ -359,6 +368,7 @@ export class Game {
       stroke,
       perfect,
       fatal: this.pendingGameOver,
+      shielded,
       leftShare: vol.leftShare,
       rightShare: vol.rightShare,
       axis: "plane",
@@ -379,8 +389,14 @@ export class Game {
       this.burstSparks("perfect");
     } else {
       play("cut", this.lastType);
-      haptic(this.pendingGameOver ? "break" : "cut");
-      if (this.pendingGameOver) this.burstSparks("break");
+      if (shielded) {
+        play("shield");
+        haptic("perfect");
+        this.burstSparks("perfect");
+      } else {
+        haptic(this.pendingGameOver ? "break" : "cut");
+        if (this.pendingGameOver) this.burstSparks("break");
+      }
     }
     if (next.combo >= 2) play("combo", next.combo);
     if (next.combo === 8 || next.combo === 16) onHappyTime();
@@ -562,6 +578,7 @@ export class Game {
       time: this.time,
       runSummary: this.runSummary,
       muted: this.muted,
+      hasShield: !this.usedShield,
       typeLabel: TYPE_LABELS[this.lastType] || "",
       themeName: themeAt(this.themeIndex).name,
       themeTrail: themeTrail(),
