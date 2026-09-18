@@ -187,4 +187,28 @@ export function maxRadius(type, length) {
   return peak;
 }
 
+/**
+ * 物体竖直方向的总高。catalog.js（建模/摆放）和 volume.js（体积积分）都要用同一份数值，
+ * 否则视觉上的切面和算出来的体积占比会对不上。
+ */
+export function objectHeight(type, length) {
+  if (type === "ruler") return CONFIG.catalog.ruler.height;
+  if (type === "eraser") return CONFIG.catalog.eraser.height;
+  if (type === "banana") return CONFIG.catalog.banana.radius * 2 + CONFIG.catalog.banana.bend * 0.9;
+  if (type === "daisy") return 0.22;
+  if (type === "tulip") return 0.4;
+  if (type === "rose") return 0.5;
+  if (type === "sunflower") return 0.28;
+  if (type === "cake") return CONFIG.catalog.cake.height;
+  if (type === "cheese") return CONFIG.catalog.cheese.height;
+  if (type === "onigiri") return CONFIG.catalog.onigiri.height;
+  if (type === "chocolate") return CONFIG.catalog.chocolate.height;
+  if (type === "popsicle") return CONFIG.catalog.popsicle.height;
+  if (type === "lollipop") return 0.46;
+  if (type === "macaron") return 0.22;
+  if (type === "bread") return maxRadius(type, length) * 2.2;
+  const squash = type === "apple" ? 0.88 : type === "orange" ? 0.92 : 1;
+  return maxRadius(type, length) * 2 * squash;
+}
+
 export const BOX_TYPES = new Set(["ruler", "eraser", "chocolate", "onigiri", "popsicle", "cheese"]);

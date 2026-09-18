@@ -3,30 +3,10 @@
  * 任意平面：nx x + ny y + nz z = d（物体局部坐标）。
  */
 import { CONFIG } from "./config.js";
-import { BOX_TYPES, maxRadius, radiusAt } from "./shapeProfile.js";
+import { BOX_TYPES, maxRadius, objectHeight, radiusAt } from "./shapeProfile.js";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
-}
-
-function objectHeight(type, length) {
-  if (type === "ruler") return CONFIG.catalog.ruler.height;
-  if (type === "eraser") return CONFIG.catalog.eraser.height;
-  if (type === "banana") return CONFIG.catalog.banana.radius * 2 + CONFIG.catalog.banana.bend * 0.9;
-  if (type === "daisy") return 0.22;
-  if (type === "tulip") return 0.4;
-  if (type === "rose") return 0.5;
-  if (type === "sunflower") return 0.28;
-  if (type === "cake") return CONFIG.catalog.cake.height;
-  if (type === "cheese") return CONFIG.catalog.cheese.height;
-  if (type === "onigiri") return CONFIG.catalog.onigiri.height;
-  if (type === "chocolate") return CONFIG.catalog.chocolate.height;
-  if (type === "popsicle") return CONFIG.catalog.popsicle.height;
-  if (type === "lollipop") return 0.46;
-  if (type === "macaron") return 0.22;
-  if (type === "bread") return maxRadius(type, length) * 2.2;
-  const squash = type === "apple" ? 0.88 : type === "orange" ? 0.92 : 1;
-  return maxRadius(type, length) * 2 * squash;
 }
 
 function circleAbove(radius, y) {

@@ -512,7 +512,7 @@ function drawFeedback(ctx, width, height, model) {
   if (!model.lastResult) return;
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
-  const { baseScore, gained, grade, combo, miss, ratio, fatal } = model.lastResult;
+  const { baseScore, gained, grade, combo, miss, fatal } = model.lastResult;
   const t = model.feedbackT;
   const perfect = !miss && baseScore >= CONFIG.score.perfectScore;
   const milestone = !miss && Boolean(model.lastResult.comboTitle);
