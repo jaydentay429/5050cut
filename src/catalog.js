@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
-import { bananaRadiusAt, BOX_TYPES, maxRadius, objectHeight, radiusAt } from "./shapeProfile.js";
+import { bananaRadiusAt, BOX_TYPES, maxRadius, objectHeight, radiusAt } from "./shapeProfile.js?v=69";
 import { makeNoiseBump, makeOuterCapTexture, makeSideTexture, makeSliceTexture } from "./sliceFace.js";
+import { cloneFruitModel, fruitEnvMap, fruitRestSize, fruitRestSpan, fruitSliceMap, isFruitType } from "./fruitAssets.js?v=99";
+import { getItem } from "./worlds.js?v=96";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -13,10 +15,7 @@ function enableShadow(mesh) {
   return mesh;
 }
 
-const GLOSSY = new Set(["apple", "pear", "orange", "strawberry", "lemon", "rose", "tulip", "eggplant", "lollipop", "macaron", "cake"]);
-const BUMPY = new Set(["orange", "lemon", "pear", "strawberry", "cucumber", "bread", "cheese", "corn"]);
-
-function makeBodyMaterial(map, spec, type, bump) {
+function makeBodyMaterial(map, spec, type, bump, item) {
   const common = {
     map,
     bumpMap: bump,
@@ -24,7 +23,7 @@ function makeBodyMaterial(map, spec, type, bump) {
     roughness: spec.roughness,
     metalness: 0,
   };
-  if (GLOSSY.has(type)) {
+  if (item.glossy) {
     return new THREE.MeshPhysicalMaterial({
       ...common,
       clearcoat: type === "apple" || type === "pear" ? 0.42 : 0.22,
@@ -35,35 +34,40 @@ function makeBodyMaterial(map, spec, type, bump) {
 }
 
 export function createMaterials(type) {
+  const item = getItem(type);
   const spec = CONFIG.catalog[type] || { roughness: 0.6 };
   const sideMap = makeSideTexture(type);
-  const faceMap = makeSliceTexture(type);
   const outerMap = makeOuterCapTexture(type);
-  const bump = BUMPY.has(type) ? makeNoiseBump() : null;
+  const sliceMap = item.flesh ? null : fruitSliceMap(type);
+  const faceMap = sliceMap || (item.flesh ? null : makeSliceTexture(type));
+  const bump = item.bumpy && !sliceMap && !item.flesh ? makeNoiseBump() : null;
 
-  const side = makeBodyMaterial(sideMap, spec, type, bump);
-  if (type === "banana") side.color.set("#ffe88a");
-  if (type === "lemon") side.color.set("#ffe56a");
-  if (type === "orange") side.color.set("#ffb034");
-  if (type === "strawberry") side.color.set("#ff6a70");
-  if (type === "apple") side.color.set("#ff4a38");
-  if (type === "pear") side.color.set("#e8ee58");
-  if (type === "eggplant") side.color.set("#8a38b0");
-  if (type === "corn") side.color.set("#f4cc38");
-  if (type === "carrot") side.color.set("#ff7a28");
-  const face = new THREE.MeshStandardMaterial({
+  const side = makeBodyMaterial(sideMap, spec, type, bump, item);
+  if (item.tint && !item.model) side.color.set(item.tint);
+  const face = new THREE.MeshPhysicalMaterial({
+    color: item.flesh || "#ffffff",
     map: faceMap,
-    roughness: 0.88,
+    roughness: item.flesh ? 0.46 : sliceMap ? 0.28 : 0.88,
     metalness: 0,
+    clearcoat: item.flesh ? 0.22 : sliceMap ? 0.55 : 0,
+    clearcoatRoughness: item.flesh ? 0.5 : 0.32,
     side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
-  const outer = makeBodyMaterial(outerMap, spec, type, bump);
+  if (fruitEnvMap()) {
+    face.envMap = fruitEnvMap();
+    face.envMapIntensity = 0.45;
+  }
+  const outer = makeBodyMaterial(outerMap, spec, type, bump, item);
+  if (item.tint && !item.model) outer.color.set(item.tint);
 
   return {
     side,
     face,
     outer,
-    textures: [sideMap, faceMap, outerMap, bump].filter(Boolean),
+    textures: [sideMap, sliceMap ? null : faceMap, outerMap, bump].filter(Boolean),
   };
 }
 
@@ -78,20 +82,21 @@ export function disposeMaterials(materials) {
 }
 
 function objectDepth(type, length) {
-  if (type === "ruler") return CONFIG.catalog.ruler.depth;
-  if (type === "eraser") return CONFIG.catalog.eraser.depth;
-  if (type === "banana") return CONFIG.catalog.banana.radius * 2 + CONFIG.catalog.banana.bend * 0.16;
-  if (type === "daisy") return 0.78;
-  if (type === "tulip") return 0.42;
-  if (type === "rose") return 0.52;
-  if (type === "sunflower") return 0.86;
-  if (type === "cake") return length * 0.92;
-  if (type === "cheese") return CONFIG.catalog.cheese.depth;
-  if (type === "onigiri") return CONFIG.catalog.onigiri.depth;
-  if (type === "chocolate") return CONFIG.catalog.chocolate.depth;
-  if (type === "popsicle") return CONFIG.catalog.popsicle.depth;
-  if (type === "lollipop") return 0.46;
-  if (type === "macaron") return 0.42;
+  const rest = fruitRestSize(type);
+  const span = fruitRestSpan(type);
+  if (rest && span) return length * (rest.z / span);
+  const item = getItem(type);
+  const spec = CONFIG.catalog[type] || {};
+  if (item.depth != null) return item.depth;
+  if (spec.depth != null) return spec.depth;
+  if (item.family === "banana" || type === "banana") {
+    const r = spec.radius ?? item.radius ?? 0.22;
+    const b = spec.bend ?? item.bend ?? 0.86;
+    return r * 2 + b * 0.16;
+  }
+  if (item.family === "cake") return length * 0.92;
+  if (item.family === "capsule") return (item.radius ?? 0.08) * 2;
+  if (item.family === "torus") return item.depth ?? length * 0.7;
   return maxRadius(type, length) * 2;
 }
 
@@ -121,9 +126,11 @@ function addFaceDisk(group, radius, x, facingPositiveX, material) {
 }
 
 function addLatheBody(group, type, length, materials) {
+  const item = getItem(type);
   const mesh = enableShadow(new THREE.Mesh(latheAlongX(profilePoints(type, length, 0, 1)), materials.side));
-  if (type === "apple") mesh.scale.y = 0.88;
-  if (type === "orange") mesh.scale.y = 0.92;
+  if (item.squashY != null) mesh.scale.y = item.squashY;
+  else if (type === "apple") mesh.scale.y = 0.88;
+  else if (type === "orange") mesh.scale.y = 0.92;
   if (type === "bread") {
     mesh.scale.y = 1.18;
     mesh.scale.z = 0.78;
@@ -537,7 +544,7 @@ function addChocolate(group, length) {
 }
 
 function addBox(group, length, type, materials) {
-  const spec = CONFIG.catalog[type];
+  const spec = CONFIG.catalog[type] || { height: 0.24, depth: 0.24 };
   const maps =
     type === "ruler" || type === "chocolate"
       ? [materials.outer, materials.outer, materials.side, materials.side, materials.face, materials.face]
@@ -546,8 +553,7 @@ function addBox(group, length, type, materials) {
   group.add(mesh);
 }
 
-function bananaCurve(length, bend) {
-  const radius = CONFIG.catalog.banana.radius;
+function bananaCurve(length, bend, radius = CONFIG.catalog.banana.radius) {
   const by = bend * 0.9;
   const bz = bend * 0.16;
   const minY = -radius;
@@ -639,12 +645,12 @@ function addBananaStem(group, curve) {
   group.add(crown);
 }
 
-function addBanana(group, length, materials) {
-  const spec = CONFIG.catalog.banana;
-  const curve = bananaCurve(length, spec.bend);
+function addBanana(group, length, materials, type = "banana") {
+  const spec = CONFIG.catalog[type] || CONFIG.catalog.banana;
+  const curve = bananaCurve(length, spec.bend, spec.radius);
   const body = enableShadow(new THREE.Mesh(makeBananaGeometry(curve, spec.radius), materials.side));
   group.add(body);
-  addBananaStem(group, curve);
+  if (type === "banana") addBananaStem(group, curve);
 }
 
 function addCarrotTops(group, length) {
@@ -730,8 +736,8 @@ function addEggplantCap(group, length) {
   addStem(group, x - 0.02, 0.12, 0, 0.2, 0.14);
 }
 
-function addCake(group, length, materials) {
-  const h = CONFIG.catalog.cake.height;
+function addCake(group, length, materials, type = "cake") {
+  const h = (CONFIG.catalog[type] || CONFIG.catalog.cake).height;
   const r = length * 0.46;
   const sponge = enableShadow(new THREE.Mesh(new THREE.CylinderGeometry(r, r, h * 0.78, 32), materials.side));
   sponge.position.y = -h * 0.04;
@@ -964,39 +970,394 @@ function addSunflowerHead(group, length) {
   addLeaf(group, -length * 0.1, 0.05, 0.05, 0.5, 1.3, "#2f7a32");
 }
 
+function addCapsuleItem(group, length, item) {
+  const r = item.radius ?? 0.08;
+  const cyl = Math.max(0.04, length - r * 2);
+  const mesh = enableShadow(
+    new THREE.Mesh(
+      new THREE.CapsuleGeometry(r, cyl, 6, 14),
+      new THREE.MeshPhysicalMaterial({
+        color: item.tint || "#cccccc",
+        roughness: item.glossy ? 0.32 : 0.58,
+        clearcoat: item.glossy ? 0.28 : 0,
+      }),
+    ),
+  );
+  mesh.rotation.z = -Math.PI / 2;
+  group.add(mesh);
+}
+
+function addTorusItem(group, length, item) {
+  const R = length * 0.32;
+  const tube = Math.max(0.035, (item.height ?? 0.2) * 0.42);
+  const mesh = enableShadow(
+    new THREE.Mesh(
+      new THREE.TorusGeometry(R, tube, 12, 28),
+      new THREE.MeshStandardMaterial({ color: item.tint || "#c48a48", roughness: 0.55 }),
+    ),
+  );
+  mesh.rotation.x = Math.PI / 2;
+  group.add(mesh);
+}
+
+function addClusterItem(group, length, item) {
+  const tint = item.tint || "#6a38a0";
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: tint,
+    roughness: 0.35,
+    clearcoat: item.glossy ? 0.4 : 0,
+  });
+  if (item.cluster === "skewer") {
+    const stick = enableShadow(
+      new THREE.Mesh(
+        cylinderAlongX(0.012, 0.012, length, 8),
+        new THREE.MeshStandardMaterial({ color: "#d8c090", roughness: 0.7 }),
+    ),
+    );
+    group.add(stick);
+    for (let i = 0; i < 3; i += 1) {
+      const berry = enableShadow(new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 12), mat));
+      berry.position.x = -length * 0.18 + i * 0.22;
+      group.add(berry);
+    }
+    return;
+  }
+  const r = 0.09;
+  const offsets = [
+    [-0.16, 0.02, 0],
+    [-0.05, -0.04, 0.06],
+    [0.06, 0.03, -0.04],
+    [0.16, -0.02, 0.03],
+    [-0.02, 0.08, 0.02],
+    [0.1, 0.06, 0.08],
+  ];
+  for (const [x, y, z] of offsets) {
+    const grape = enableShadow(new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), mat));
+    grape.position.set(x * length * 1.4, y, z);
+    group.add(grape);
+  }
+  addStem(group, -length * 0.28, 0.14, 0, 0.4, 0.16);
+}
+
+function addGenericBloom(group, length, item) {
+  const bloom = item.bloom || {};
+  const stem = enableShadow(
+    new THREE.Mesh(
+      cylinderAlongX(0.016, 0.022, length * 0.72, 8),
+      new THREE.MeshStandardMaterial({ color: "#2f6a28", roughness: 0.7 }),
+    ),
+  );
+  stem.position.x = -length * 0.08;
+  group.add(stem);
+  const headX = length / 2 - 0.12;
+  const petalMat = new THREE.MeshPhysicalMaterial({
+    color: bloom.color || item.tint,
+    roughness: 0.48,
+    side: THREE.DoubleSide,
+    clearcoat: 0.15,
+  });
+  const count = bloom.count || 6;
+  for (let i = 0; i < count; i += 1) {
+    const a = (i / count) * Math.PI * 2;
+    const petal = enableShadow(
+      new THREE.Mesh(
+        bloom.style === "egg"
+          ? new THREE.SphereGeometry(0.12, 10, 8)
+          : new THREE.SphereGeometry(0.11, 10, 8),
+        petalMat,
+      ),
+    );
+    petal.scale.set(bloom.style === "egg" ? 0.55 : 0.7, 0.18, bloom.style === "egg" ? 1.35 : 1.1);
+    petal.position.set(headX, Math.sin(a) * 0.08, Math.cos(a) * 0.08);
+    petal.rotation.z = bloom.style === "egg" ? 0.55 : 0.2;
+    petal.rotation.y = a;
+    group.add(petal);
+  }
+  const inner = enableShadow(
+    new THREE.Mesh(
+      new THREE.SphereGeometry(0.055, 10, 8),
+      new THREE.MeshStandardMaterial({ color: bloom.inner || "#f0c868", roughness: 0.55 }),
+    ),
+  );
+  inner.position.x = headX + 0.02;
+  group.add(inner);
+}
+
+function addSpikeItem(group, length, item) {
+  const stem = enableShadow(
+    new THREE.Mesh(
+      cylinderAlongX(0.012, 0.018, length, 8),
+      new THREE.MeshStandardMaterial({ color: "#2f6a28", roughness: 0.7 }),
+    ),
+  );
+  group.add(stem);
+  const bud = new THREE.MeshStandardMaterial({ color: item.tint || "#a070d0", roughness: 0.55 });
+  for (let i = 0; i < 18; i += 1) {
+    const t = 0.35 + (i / 18) * 0.58;
+    const a = i * 1.7;
+    const bead = enableShadow(new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), bud));
+    bead.position.set((t - 0.5) * length, Math.sin(a) * 0.03, Math.cos(a) * 0.03);
+    group.add(bead);
+  }
+}
+
+function addItemBits(group, type, length) {
+  const item = getItem(type);
+  for (const bit of item.bits || []) {
+    if (bit === "apple") addAppleBits(group, length);
+    else if (bit === "pear") addPearBits(group, length);
+    else if (bit === "orange") addOrangeBits(group, length);
+    else if (bit === "lemon") addLemonBits(group, length);
+    else if (bit === "strawberry") addStrawberrySeeds(group, length);
+    else if (bit === "tulip") addTulipBloom(group, length, { side: new THREE.MeshStandardMaterial({ color: item.tint }) });
+    else if (bit === "daisy") addDaisyHead(group, length);
+    else if (bit === "sunflower") addSunflowerHead(group, length);
+    else if (bit === "carrot") addCarrotTops(group, length);
+    else if (bit === "cucumber") addCucumberBits(group, length);
+    else if (bit === "corn") {
+      addCornKernels(group, length);
+      addCornHusk(group, length);
+    } else if (bit === "eggplant") addEggplantCap(group, length);
+    else if (bit === "bread") addBreadBits(group, length);
+    else if (bit === "stemleaf") {
+      const top = maxRadius(type, length) * 0.7;
+      addStem(group, -length * 0.08, top + 0.08, 0, 0.2, 0.18);
+      addLeaf(group, 0.08, top + 0.12, 0.04, 0.65, 1.2);
+    } else if (bit === "fuzz") {
+      const mat = new THREE.MeshStandardMaterial({ color: "#6a4a28", roughness: 0.9 });
+      for (let i = 0; i < 24; i += 1) {
+        const t = 0.1 + (i / 24) * 0.8;
+        const a = i * 2.1;
+        const r = radiusAt(type, t, length) * 0.92;
+        const bump = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), mat);
+        bump.position.set((t - 0.5) * length, Math.sin(a) * r, Math.cos(a) * r);
+        group.add(bump);
+      }
+    } else if (bit === "calyx") {
+      const x = -length / 2 + 0.02;
+      for (let i = 0; i < 5; i += 1) {
+        const a = (i / 5) * Math.PI * 2;
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), leafMat("#2f7a30"));
+        leaf.scale.set(0.4, 0.1, 1.4);
+        leaf.position.set(x, Math.sin(a) * 0.08, Math.cos(a) * 0.08);
+        leaf.rotation.z = Math.PI / 2;
+        leaf.rotation.y = a;
+        group.add(leaf);
+      }
+    } else if (bit === "tops") addCarrotTops(group, length);
+    else if (bit === "stem") addStem(group, 0, maxRadius(type, length) * 0.7, 0, 0.1, 0.14);
+    else if (bit === "eyes") {
+      const mat = new THREE.MeshStandardMaterial({ color: "#6a4a28", roughness: 0.8 });
+      for (let i = 0; i < 8; i += 1) {
+        const t = 0.2 + (i / 8) * 0.6;
+        const a = i * 2.4;
+        const r = radiusAt(type, t, length) * 0.9;
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), mat);
+        eye.position.set((t - 0.5) * length, Math.sin(a) * r, Math.cos(a) * r);
+        group.add(eye);
+      }
+    } else if (bit === "chips") {
+      const mat = new THREE.MeshStandardMaterial({ color: "#4a2410", roughness: 0.7 });
+      for (let i = 0; i < 9; i += 1) {
+        const chip = enableShadow(new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), mat));
+        chip.scale.set(1, 0.35, 1.1);
+        chip.position.set(((i % 3) - 1) * 0.12, 0.06, (Math.floor(i / 3) - 1) * 0.12);
+        group.add(chip);
+      }
+    } else if (bit === "cap") {
+      const cap = enableShadow(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(0.18, 14, 10),
+          new THREE.MeshStandardMaterial({ color: "#c45a48", roughness: 0.62 }),
+        ),
+      );
+      cap.scale.set(1.35, 0.55, 1.35);
+      cap.position.y = maxRadius(type, length) * 0.55;
+      group.add(cap);
+    } else if (bit === "beak") {
+      const beak = enableShadow(
+        new THREE.Mesh(
+          new THREE.ConeGeometry(0.05, 0.12, 8),
+          new THREE.MeshStandardMaterial({ color: "#e07020", roughness: 0.5 }),
+        ),
+      );
+      beak.rotation.z = -Math.PI / 2;
+      beak.position.set(length * 0.28, 0.02, 0.08);
+      group.add(beak);
+    }
+  }
+}
+
+function addSpecialProp(group, type, length) {
+  const item = getItem(type);
+  const tint = item.tint || "#cccccc";
+  const metal = new THREE.MeshStandardMaterial({ color: "#9aa2aa", roughness: 0.32, metalness: 0.55 });
+  const paint = new THREE.MeshStandardMaterial({ color: tint, roughness: item.glossy ? 0.35 : 0.62, metalness: 0.05 });
+  const dark = new THREE.MeshStandardMaterial({ color: "#3a2a18", roughness: 0.72 });
+  const glass = new THREE.MeshPhysicalMaterial({
+    color: tint,
+    roughness: 0.12,
+    transmission: 0.35,
+    thickness: 0.2,
+    transparent: true,
+    opacity: 0.92,
+  });
+
+  const add = (geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => {
+    const mesh = enableShadow(new THREE.Mesh(geo, mat));
+    mesh.position.set(x, y, z);
+    mesh.rotation.set(rx, ry, rz);
+    mesh.scale.set(sx, sy, sz);
+    group.add(mesh);
+    return mesh;
+  };
+
+  if (type === "juice") {
+    add(new THREE.CylinderGeometry(0.16, 0.14, length * 0.85, 18), glass);
+    add(new THREE.CylinderGeometry(0.155, 0.135, length * 0.55, 16), paint, 0, -0.04, 0);
+    add(cylinderAlongX(0.012, 0.012, length * 0.7, 8), paint, 0.02, 0.22, 0, 0, 0, 0.35);
+    add(new THREE.TorusGeometry(0.16, 0.012, 8, 18), metal, 0, length * 0.38, 0, Math.PI / 2, 0, 0);
+    return;
+  }
+  if (type === "fruit_box" || type === "pastry_box") {
+    add(new THREE.BoxGeometry(length, length * 0.42, length * 0.72), paint);
+    add(new THREE.BoxGeometry(length * 1.02, 0.04, length * 0.74), dark, 0, length * 0.22, 0);
+    add(new THREE.BoxGeometry(0.06, 0.02, length * 0.78), new THREE.MeshStandardMaterial({ color: "#e8c040" }), 0, length * 0.25, 0);
+    return;
+  }
+  if (type === "watering_can") {
+    add(new THREE.CylinderGeometry(0.16, 0.2, length * 0.7, 16), paint);
+    add(new THREE.TorusGeometry(0.14, 0.025, 8, 16, Math.PI), dark, 0, 0.08, -0.18, Math.PI / 2, 0, 0);
+    add(new THREE.CylinderGeometry(0.03, 0.05, 0.32, 8), paint, 0.22, 0.12, 0, 0, 0, -0.9);
+    add(new THREE.SphereGeometry(0.07, 10, 8), metal, 0.36, 0.22, 0);
+    return;
+  }
+  if (type === "sickle") {
+    add(cylinderAlongX(0.03, 0.035, length * 0.55, 8), dark, -length * 0.12);
+    add(new THREE.TorusGeometry(0.22, 0.035, 8, 18, Math.PI * 1.15), metal, length * 0.18, 0.08, 0, Math.PI / 2, 0, 0.4);
+    return;
+  }
+  if (type === "hose") {
+    add(new THREE.TorusGeometry(length * 0.28, 0.055, 10, 24), paint, 0, 0, 0, Math.PI / 2);
+    add(new THREE.CylinderGeometry(0.05, 0.06, 0.18, 10), metal, length * 0.28, 0.04, 0, 0, 0, 1.1);
+    return;
+  }
+  if (type === "fertilizer") {
+    add(new THREE.BoxGeometry(length * 0.7, length * 0.85, length * 0.28), paint);
+    add(new THREE.BoxGeometry(length * 0.72, 0.08, length * 0.3), dark, 0, length * 0.38, 0);
+    return;
+  }
+  if (type === "rolling_pin") {
+    add(cylinderAlongX(0.09, 0.09, length * 0.62, 14), paint);
+    add(cylinderAlongX(0.03, 0.03, length * 0.22, 8), dark, -length * 0.4);
+    add(cylinderAlongX(0.03, 0.03, length * 0.22, 8), dark, length * 0.4);
+    return;
+  }
+  if (type === "candy_jar") {
+    add(new THREE.CylinderGeometry(0.18, 0.16, length * 0.7, 18), glass);
+    add(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 16), paint, 0, length * 0.38, 0);
+    for (let i = 0; i < 7; i += 1) {
+      add(new THREE.SphereGeometry(0.045, 8, 6), new THREE.MeshStandardMaterial({ color: i % 2 ? "#e04870" : "#48c870" }), (i % 3) * 0.06 - 0.06, -0.08, ((i * 0.4) % 0.12) - 0.06);
+    }
+    return;
+  }
+  if (type === "tin") {
+    add(new THREE.CylinderGeometry(length * 0.38, length * 0.38, length * 0.28, 24), paint);
+    add(new THREE.CylinderGeometry(length * 0.4, length * 0.4, 0.04, 24), metal, 0, length * 0.16, 0);
+    return;
+  }
+  if (type === "scissors") {
+    add(new THREE.BoxGeometry(length * 0.55, 0.04, 0.08), metal, 0.08, 0.03, 0, 0, 0, 0.18);
+    add(new THREE.BoxGeometry(length * 0.55, 0.04, 0.08), metal, 0.08, -0.03, 0, 0, 0, -0.18);
+    add(new THREE.TorusGeometry(0.07, 0.018, 8, 14), dark, -length * 0.28, 0.07, 0);
+    add(new THREE.TorusGeometry(0.07, 0.018, 8, 14), dark, -length * 0.28, -0.07, 0);
+    return;
+  }
+  if (type === "inkwell") {
+    add(new THREE.CylinderGeometry(0.14, 0.16, 0.16, 16), paint);
+    add(new THREE.CylinderGeometry(0.06, 0.06, 0.08, 12), glass, 0, 0.1, 0);
+    add(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshStandardMaterial({ color: "#0a1028" }), 0, 0.02, 0);
+    return;
+  }
+  if (type === "cleaver") {
+    add(new THREE.BoxGeometry(length * 0.55, length * 0.32, 0.04), metal, 0.1);
+    add(cylinderAlongX(0.035, 0.04, length * 0.4, 8), dark, -length * 0.28);
+    return;
+  }
+  if (type === "pan") {
+    add(new THREE.CylinderGeometry(length * 0.38, length * 0.4, 0.06, 24), metal);
+    add(new THREE.TorusGeometry(length * 0.4, 0.02, 8, 24), metal, 0, 0.04, 0);
+    add(cylinderAlongX(0.025, 0.03, length * 0.45, 8), dark, length * 0.42);
+    return;
+  }
+  if (type === "sauce") {
+    add(new THREE.CylinderGeometry(0.09, 0.11, length * 0.7, 14), paint);
+    add(new THREE.CylinderGeometry(0.03, 0.05, 0.16, 10), dark, 0, length * 0.38, 0);
+    return;
+  }
+  if (type === "paper_bag") {
+    add(new THREE.BoxGeometry(length * 0.55, length * 0.7, length * 0.28), paint);
+    add(new THREE.BoxGeometry(length * 0.58, 0.04, length * 0.12), dark, 0, length * 0.38, 0.08);
+    add(new THREE.BoxGeometry(length * 0.58, 0.04, length * 0.12), dark, 0, length * 0.38, -0.08);
+    return;
+  }
+  if (type === "teddy") {
+    add(new THREE.SphereGeometry(0.16, 14, 12), paint, 0, -0.04, 0);
+    add(new THREE.SphereGeometry(0.12, 12, 10), paint, 0, 0.16, 0);
+    add(new THREE.SphereGeometry(0.05, 8, 6), dark, 0.04, 0.18, 0.1);
+    add(new THREE.SphereGeometry(0.05, 8, 6), dark, -0.04, 0.18, 0.1);
+    add(new THREE.SphereGeometry(0.045, 8, 6), paint, 0.12, 0.24, 0);
+    add(new THREE.SphereGeometry(0.045, 8, 6), paint, -0.12, 0.24, 0);
+    return;
+  }
+  if (type === "hammer") {
+    add(cylinderAlongX(0.03, 0.035, length * 0.75, 8), dark);
+    add(new THREE.BoxGeometry(0.16, 0.12, 0.1), paint, length * 0.28);
+    return;
+  }
+  if (type === "pickaxe") {
+    add(cylinderAlongX(0.03, 0.035, length * 0.8, 8), dark);
+    add(new THREE.BoxGeometry(0.42, 0.08, 0.08), metal, length * 0.28, 0.02, 0, 0, 0, 0.15);
+    return;
+  }
+  if (type === "lantern") {
+    add(new THREE.BoxGeometry(0.2, 0.28, 0.2), metal);
+    add(new THREE.SphereGeometry(0.09, 12, 10), new THREE.MeshStandardMaterial({ color: "#ffe08a", emissive: "#ffb020", emissiveIntensity: 0.6 }));
+    add(new THREE.BoxGeometry(0.22, 0.04, 0.22), dark, 0, 0.16, 0);
+    add(new THREE.TorusGeometry(0.06, 0.012, 8, 12), metal, 0, 0.22, 0);
+    return;
+  }
+  add(new THREE.BoxGeometry(length * 0.6, length * 0.4, length * 0.4), paint);
+}
+
 export function createWholeObject(type, length, materials) {
   const group = new THREE.Group();
-  if (type === "banana") addBanana(group, length, materials);
+  const item = getItem(type);
+  const scanned = cloneFruitModel(type, length);
+  if (scanned) {
+    group.add(scanned);
+  } else if (item.family === "banana" || type === "banana") addBanana(group, length, materials, type);
   else if (type === "pencil") addPencil(group, length, materials);
   else if (type === "crayon") addCrayon(group, length);
   else if (type === "eraser") addEraser(group, length);
-  else if (type === "ruler") addBox(group, length, type, materials);
+  else if (type === "ruler" || item.family === "box") addBox(group, length, type, materials);
   else if (type === "chocolate") addChocolate(group, length);
   else if (type === "onigiri") addOnigiri(group, length);
-  else if (type === "lollipop") addLollipop(group, length);
+  else if (type === "lollipop" || item.family === "lollipop") addLollipop(group, length);
   else if (type === "macaron") addMacaron(group, length);
   else if (type === "popsicle") addPopsicle(group, length);
-  else if (type === "cake") addCake(group, length, materials);
+  else if (item.family === "cake" || type === "cake") addCake(group, length, materials, type);
   else if (type === "cheese") addCheese(group, length);
-  else if (type === "rose") addRosePetals(group, length, materials);
+  else if (type === "rose" || item.family === "rose") addRosePetals(group, length, materials);
+  else if (item.family === "capsule") addCapsuleItem(group, length, item);
+  else if (item.family === "torus") addTorusItem(group, length, item);
+  else if (item.family === "cluster") addClusterItem(group, length, item);
+  else if (item.family === "bloom") addGenericBloom(group, length, item);
+  else if (item.family === "spike") addSpikeItem(group, length, item);
+  else if (item.family === "prop") addSpecialProp(group, type, length);
   else {
     addLatheBody(group, type, length, materials);
-    if (type === "apple") addAppleBits(group, length);
-    if (type === "pear") addPearBits(group, length);
-    if (type === "orange") addOrangeBits(group, length);
-    if (type === "lemon") addLemonBits(group, length);
-    if (type === "strawberry") addStrawberrySeeds(group, length);
-    if (type === "tulip") addTulipBloom(group, length, materials);
-    if (type === "daisy") addDaisyHead(group, length);
-    if (type === "sunflower") addSunflowerHead(group, length);
-    if (type === "carrot") addCarrotTops(group, length);
-    if (type === "cucumber") addCucumberBits(group, length);
-    if (type === "corn") {
-      addCornKernels(group, length);
-      addCornHusk(group, length);
-    }
-    if (type === "eggplant") addEggplantCap(group, length);
-    if (type === "bread") addBreadBits(group, length);
+    addItemBits(group, type, length);
   }
 
   group.position.y = objectHeight(type, length) / 2;
@@ -1102,6 +1463,14 @@ export function createPlaneCap(type, length, normal, d, material) {
   const { n, u, v } = planeBasis(normal);
   const nd = d / (n.length() || 1);
   const origin = n.clone().multiplyScalar(nd);
+
+  if (isFruitType(type)) {
+    const r = Math.max(0.05, maxRadius(type, length) * 1.05);
+    const mesh = new THREE.Mesh(new THREE.CircleGeometry(r, 36), material);
+    mesh.position.copy(origin);
+    mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, v, n));
+    return mesh;
+  }
 
   if (BOX_TYPES.has(type)) {
     const spec = CONFIG.catalog[type];

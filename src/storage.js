@@ -67,3 +67,90 @@ export function unlockCodexEntry(type, score) {
   }
   return { data, first };
 }
+
+const ECONOMY_KEY = "perfect-slice-economy";
+
+function emptyEconomy() {
+  return {
+    tokens: 0,
+    inventory: { retry: 0, guide: 0, summon: 0 },
+    lastShareByChannel: { fb: "", x: "", threads: "" },
+    lastSummonSecretDay: "",
+  };
+}
+
+export function todayKey(now = new Date()) {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function loadEconomy() {
+  const base = emptyEconomy();
+  try {
+    const raw = JSON.parse(localStorage.getItem(ECONOMY_KEY) || "null");
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return base;
+    return {
+      tokens: Math.max(0, Number(raw.tokens) || 0),
+      inventory: {
+        retry: Math.max(0, Number(raw.inventory?.retry) || 0),
+        guide: Math.max(0, Number(raw.inventory?.guide) || 0),
+        summon: Math.max(0, Number(raw.inventory?.summon) || 0),
+      },
+      lastShareByChannel: {
+        fb: String(raw.lastShareByChannel?.fb || ""),
+        x: String(raw.lastShareByChannel?.x || ""),
+        threads: String(raw.lastShareByChannel?.threads || ""),
+      },
+      lastSummonSecretDay: String(raw.lastSummonSecretDay || ""),
+    };
+  } catch {
+    return base;
+  }
+}
+
+export function saveEconomy(data) {
+  try {
+    localStorage.setItem(ECONOMY_KEY, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+}
+
+const ACHIEVE_KEY = "perfect-slice-achievements";
+
+function emptyAchievements() {
+  return {
+    unlocked: {},
+    stats: { bestCombo: 0, maxWorlds: 0, perfects: 0, highPerfect: 0 },
+  };
+}
+
+export function loadAchievements() {
+  const base = emptyAchievements();
+  try {
+    const raw = JSON.parse(localStorage.getItem(ACHIEVE_KEY) || "null");
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return base;
+    const unlocked = raw.unlocked && typeof raw.unlocked === "object" && !Array.isArray(raw.unlocked) ? raw.unlocked : {};
+    return {
+      unlocked,
+      stats: {
+        bestCombo: Math.max(0, Number(raw.stats?.bestCombo) || 0),
+        maxWorlds: Math.max(0, Number(raw.stats?.maxWorlds) || 0),
+        perfects: Math.max(0, Number(raw.stats?.perfects) || 0),
+        highPerfect: Math.max(0, Number(raw.stats?.highPerfect) || 0),
+      },
+    };
+  } catch {
+    return base;
+  }
+}
+
+export function saveAchievements(data) {
+  try {
+    localStorage.setItem(ACHIEVE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+}

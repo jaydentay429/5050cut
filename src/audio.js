@@ -3,6 +3,7 @@
  */
 import { CONFIG } from "./config.js";
 import { loadMuted, saveMuted } from "./storage.js";
+import { worldOf } from "./worlds.js?v=96";
 
 let ctx = null;
 let master = null;
@@ -23,32 +24,46 @@ function ensureContext() {
   if (!AudioCtx) return null;
   ctx = new AudioCtx();
   master = ctx.createGain();
-  master.gain.value = muted ? 0 : CONFIG.audio.master;
+  master.gain.value = muted || focusMuted ? 0 : CONFIG.audio.master;
   master.connect(ctx.destination);
   return ctx;
 }
 
 export function unlockAudio() {
   const audio = ensureContext();
-  if (audio?.state === "suspended") {
-    audio.resume().catch(() => {});
+  if (!audio) return;
+  if (audio.state === "suspended") {
+    audio.resume().then(() => {
+      musicNext = 0;
+    }).catch(() => {});
   }
   startAmbient();
+  ensureMusic();
 }
 
 export function isMuted() {
   return muted;
 }
 
+let focusMuted = false;
+
+export function setFocusMuted(on) {
+  focusMuted = Boolean(on);
+  if (!master) return;
+  master.gain.value = muted || focusMuted ? 0 : CONFIG.audio.master;
+}
+
 export function setMuted(next) {
   muted = Boolean(next);
   saveMuted(muted);
-  if (master) master.gain.value = muted ? 0 : CONFIG.audio.master;
+  if (master) master.gain.value = muted || focusMuted ? 0 : CONFIG.audio.master;
   if (ambGain) ambGain.gain.value = muted ? 0 : CONFIG.audio.ambient;
   if (musicGain) musicGain.gain.value = muted ? 0 : CONFIG.audio.music;
   if (!muted) {
     startAmbient();
     ensureMusic();
+    if (ctx?.state === "suspended") ctx.resume().catch(() => {});
+    musicNext = 0;
   } else {
     musicNext = 0;
   }
@@ -162,11 +177,21 @@ function noiseAt(dest, { duration, gain = 0.12, freq = 1200, when }) {
   src.stop(start + duration + 0.02);
 }
 
-const MELODY = {
-  menu: [392, 0, 440, 0, 523, 0, 440, 0, 392, 0, 349, 0, 440, 0, 392, 0],
-  play: [392, 523, 440, 0, 587, 523, 440, 392, 523, 0, 659, 523, 440, 392, 349, 392],
-  over: [247, 0, 220, 0, 196, 0, 0, 0, 185, 0, 196, 0, 0, 0, 0, 0],
-};
+/** 自合成循环：C 大调五声，4 小节钩子。无第三方曲库。 */
+const HOOK = [
+  523, 523, 659, 784, 659, 587, 523, 0,
+  392, 523, 659, 523, 587, 659, 784, 0,
+  523, 659, 784, 659, 523, 392, 440, 523,
+  659, 523, 440, 392, 349, 392, 523, 0,
+];
+const BASS = [
+  130.81, 0, 130.81, 0, 98, 0, 98, 0,
+  110, 0, 110, 0, 87.31, 0, 98, 0,
+];
+const MENU_HOOK = [
+  392, 0, 523, 0, 659, 0, 523, 0,
+  392, 0, 440, 0, 523, 0, 392, 0,
+];
 
 function ensureMusic() {
   const audio = ensureContext();
@@ -176,15 +201,15 @@ function ensureMusic() {
   musicGain.connect(master);
 
   padGain = audio.createGain();
-  padGain.gain.value = 0.012;
+  padGain.gain.value = 0.01;
   padGain.connect(musicGain);
 
   const o1 = audio.createOscillator();
   const o2 = audio.createOscillator();
   o1.type = "sine";
   o2.type = "sine";
-  o1.frequency.value = 196;
-  o2.frequency.value = 247;
+  o1.frequency.value = 130.81;
+  o2.frequency.value = 196;
   o1.connect(padGain);
   o2.connect(padGain);
   o1.start();
@@ -194,39 +219,85 @@ function ensureMusic() {
 }
 
 function emitBeat(when, beat) {
-  const step = beat % 16;
-  const seq = MELODY[musicMood] || MELODY.play;
-  const freq = seq[step];
-  const heat = 1 + Math.min(0.28, musicCombo * 0.035);
+  const loop = 32;
+  const step = ((beat % loop) + loop) % loop;
+  const bar8 = step % 16;
+  const heat = 1 + Math.min(0.22, musicCombo * 0.028);
+  const play = musicMood === "play";
+  const over = musicMood === "over";
+  const kick = step % 4 === 0;
+  const snare = step % 8 === 4;
+  const hat = step % 2 === 1;
 
-  if (step % 4 === 0) {
+  if (kick && !over) {
     toneAt(musicGain, {
-      freq: musicMood === "over" ? 73 : 98,
-      freqEnd: musicMood === "over" ? 58 : 82,
-      duration: 0.2,
+      freq: 92,
+      freqEnd: 48,
+      duration: 0.16,
       type: "sine",
-      gain: 0.042,
+      gain: play ? 0.16 : 0.1,
       when,
     });
   }
 
-  if (freq) {
+  if (snare && play) {
+    noiseAt(musicGain, { duration: 0.05, gain: 0.028 + Math.min(0.012, musicCombo * 0.0012), freq: 2100, when });
+  }
+
+  if (hat && play) {
+    noiseAt(musicGain, { duration: 0.018, gain: 0.012, freq: 7800, when });
+  }
+
+  const bass = over ? 0 : BASS[bar8];
+  if (bass) {
     toneAt(musicGain, {
-      freq: freq * (musicMood === "play" ? heat : 1),
-      duration: musicMood === "over" ? 0.22 : 0.13,
+      freq: bass,
+      duration: 0.18,
       type: "triangle",
-      gain: musicMood === "menu" ? 0.028 : 0.034,
+      gain: play ? 0.12 : 0.08,
       when,
     });
   }
 
-  if (musicMood === "play" && step % 2 === 0) {
-    noiseAt(musicGain, { duration: 0.028, gain: 0.012 + Math.min(0.012, musicCombo * 0.0015), freq: 1700, when });
+  const hook = over ? 0 : play ? HOOK[step] : MENU_HOOK[bar8];
+  if (hook) {
+    toneAt(musicGain, {
+      freq: hook * (play ? heat : 1),
+      duration: play ? 0.15 : 0.2,
+      type: "triangle",
+      gain: play ? 0.1 : 0.072,
+      when,
+    });
+    if (play && step % 4 === 0) {
+      toneAt(musicGain, {
+        freq: hook * 2 * heat,
+        duration: 0.08,
+        type: "sine",
+        gain: 0.016,
+        when,
+      });
+    }
+  }
+
+  if (over && kick) {
+    toneAt(musicGain, {
+      freq: 73,
+      freqEnd: 52,
+      duration: 0.28,
+      type: "sine",
+      gain: 0.04,
+      when,
+    });
   }
 }
 
 export function tickMusic({ mood = "menu", combo = 0, theme = "fruit" } = {}) {
+  if (muted) return;
   if (!ctx) return;
+  if (ctx.state === "suspended") {
+    ctx.resume().catch(() => {});
+    return;
+  }
   const audio = ctx;
   musicMood = mood;
   musicCombo = combo;
@@ -235,23 +306,28 @@ export function tickMusic({ mood = "menu", combo = 0, theme = "fruit" } = {}) {
   if (muted || !padOsc || !padGain) return;
 
   const pads = {
-    fruit: [196, 247],
-    veg: [174, 220],
-    flower: [220, 330],
-    pastry: [196, 294],
-    candy: [247, 370],
-    stationery: [185, 233],
+    fruit: [130.81, 196],
+    veg: [146.83, 220],
+    flower: [164.81, 246.94],
+    pastry: [130.81, 196],
+    candy: [174.61, 261.63],
+    stationery: [146.83, 220],
+    kitchen: [123.47, 185],
+    night: [110, 164.81],
+    toys: [196, 293.66],
+    mineral: [98, 146.83],
   };
   const pair = pads[theme] || pads.fruit;
-  const padA = mood === "over" ? 110 : mood === "menu" ? 174 : pair[0];
-  const padB = mood === "over" ? 146 : mood === "menu" ? 220 : pair[1];
-  const padVol = mood === "over" ? 0.008 : mood === "play" ? 0.016 + Math.min(0.01, combo * 0.0012) : 0.012;
+  const padA = mood === "over" ? 98 : mood === "menu" ? 130.81 : pair[0];
+  const padB = mood === "over" ? 146.83 : mood === "menu" ? 196 : pair[1];
+  const padVol = mood === "over" ? 0.02 : mood === "play" ? 0.04 + Math.min(0.02, combo * 0.002) : 0.035;
   padOsc.o1.frequency.setTargetAtTime(padA, audio.currentTime, 0.18);
   padOsc.o2.frequency.setTargetAtTime(padB, audio.currentTime, 0.18);
   padGain.gain.setTargetAtTime(padVol, audio.currentTime, 0.12);
 
   if (!musicNext) musicNext = audio.currentTime + 0.04;
-  const step = 60 / 90 / 2;
+  /** 120 BPM 八分音符，4 小节一轮。 */
+  const step = 60 / 120 / 2;
   let guard = 0;
   while (musicNext < audio.currentTime + 0.16 && guard < 8) {
     emitBeat(musicNext, musicBeat);
@@ -344,29 +420,22 @@ export function play(name, extra) {
 
   if (name === "cut") {
     const kind = extra || "apple";
-    const fruit = new Set(["apple", "pear", "orange", "banana", "strawberry", "lemon"]);
-    const flower = new Set(["rose", "tulip", "daisy", "sunflower"]);
-    const veg = new Set(["carrot", "cucumber", "corn", "eggplant"]);
-    const pastry = new Set(["cake", "bread", "cheese", "onigiri"]);
-    const candy = new Set(["lollipop", "chocolate", "macaron", "popsicle"]);
-    if (fruit.has(kind)) {
+    const sfx = (CONFIG.themes[worldOf(kind)] || {}).sfx || "wood";
+    if (sfx === "fruit") {
       noise({ duration: 0.1, gain: 0.1, freq: 1400 });
       tone({ freq: 300, freqEnd: 160, duration: 0.13, type: "sine", gain: 0.07 });
-    } else if (flower.has(kind)) {
+    } else if (sfx === "flower") {
       noise({ duration: 0.08, gain: 0.07, freq: 1800 });
       tone({ freq: 480, freqEnd: 280, duration: 0.12, type: "triangle", gain: 0.05 });
-    } else if (veg.has(kind)) {
+    } else if (sfx === "veg") {
       noise({ duration: 0.11, gain: 0.09, freq: 900 });
       tone({ freq: 220, freqEnd: 110, duration: 0.14, type: "sine", gain: 0.06 });
-    } else if (pastry.has(kind)) {
+    } else if (sfx === "pastry") {
       noise({ duration: 0.1, gain: 0.08, freq: 700 });
       tone({ freq: 260, freqEnd: 140, duration: 0.16, type: "triangle", gain: 0.06 });
-    } else if (candy.has(kind)) {
+    } else if (sfx === "candy") {
       noise({ duration: 0.07, gain: 0.06, freq: 2200 });
       tone({ freq: 620, freqEnd: 880, duration: 0.1, type: "sine", gain: 0.05 });
-    } else if (kind === "eraser") {
-      noise({ duration: 0.1, gain: 0.08, freq: 700 });
-      tone({ freq: 180, freqEnd: 110, duration: 0.14, type: "sine", gain: 0.05 });
     } else {
       noise({ duration: 0.09, gain: 0.1, freq: 1200 });
       tone({ freq: 200, freqEnd: 100, duration: 0.12, type: "sine", gain: 0.07 });

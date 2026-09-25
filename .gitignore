@@ -1,2 +1,10 @@
 .DS_Store
 .claude/worktrees/
+node_modules/
+dist/
+.wrangler/
+*.glb.tmp.glb
+.env
+.dev.vars
+__pycache__/
+*.pyc

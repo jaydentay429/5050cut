@@ -1,7 +1,13 @@
 /** 所有可调数值集中放这里，后续打磨手感只改这一份。 */
+import { catalogSpec, themeBlock } from "./worlds.js?v=96";
+
 export const CONFIG = {
   backgroundColor: "#1c1712",
   showCanvasSize: false,
+  /** 生产把模型放到 R2 时填写，例如 https://cdn.yourdomain.com 。本地留空。 */
+  assetBase: "",
+  /** 仅调试：局内图鉴全开。正式站保持 false；本地可用 ?codex=all。 */
+  unlockAllCodex: false,
 
   scene: {
     fov: 32,
@@ -9,11 +15,21 @@ export const CONFIG = {
     far: 80,
     cameraPos: [0.62, 2.12, 5.15],
     lookAt: [0, 0.32, 0],
+    /** 水果摊实拍：铺满画面，略上移让空桌对齐物品。 */
+    stallCover: 1.16,
+    stallLift: -0.38,
+    tableY: 0.02,
+    fruitZ: 0,
+    fruitScreenLift: 0.08,
+    /** 桌上苹果最长边（世界单位）。其它物品 = 这个值 × realScale。 */
+    fruitAppleLength: 0.52,
+    fruitScaleMin: 0.16,
+    fruitScaleMax: 2.4,
     /** 保证物体长轴在竖屏里也能完整入画。 */
     fitMargin: 1.45,
     fogNear: 18,
     fogFar: 48,
-    maxPixelRatio: 2,
+    maxPixelRatio: 1.5,
     baseLength: 2.45,
     minLength: 0.95,
     boardSize: [6.2, 0.1, 3.2],
@@ -39,122 +55,45 @@ export const CONFIG = {
     comboShortenCap: 0.22,
   },
 
-  catalog: {
-    apple: { roughness: 0.36 },
-    pear: { roughness: 0.46 },
-    orange: { roughness: 0.76 },
-    banana: { radius: 0.22, bend: 0.86, roughness: 0.5 },
-    strawberry: { roughness: 0.52 },
-    lemon: { roughness: 0.48 },
-    rose: { roughness: 0.38 },
-    tulip: { roughness: 0.42 },
-    daisy: { roughness: 0.48 },
-    pencil: { roughness: 0.42 },
-    eraser: { height: 0.22, depth: 0.42, roughness: 0.82 },
-    crayon: { roughness: 0.48 },
-    ruler: { height: 0.36, depth: 0.055, roughness: 0.4 },
-    carrot: { roughness: 0.58 },
-    cucumber: { roughness: 0.5 },
-    corn: { roughness: 0.62 },
-    eggplant: { roughness: 0.4 },
-    cake: { height: 0.38, roughness: 0.52 },
-    bread: { roughness: 0.78 },
-    cheese: { height: 0.4, depth: 0.22, roughness: 0.68 },
-    onigiri: { height: 0.58, depth: 0.34, roughness: 0.86 },
-    sunflower: { roughness: 0.5 },
-    lollipop: { roughness: 0.28 },
-    chocolate: { height: 0.3, depth: 0.12, roughness: 0.48 },
-    macaron: { roughness: 0.45 },
-    popsicle: { height: 0.22, depth: 0.14, roughness: 0.4 },
-  },
-
-  themes: {
-    order: ["fruit", "veg", "flower", "pastry", "candy", "stationery"],
-    cutsPerTheme: 4,
-    fruit: {
-      name: "水果摊",
-      objects: ["apple", "pear", "orange", "banana", "strawberry", "lemon"],
-      clear: "#e09048",
-      ground: "#7a4a28",
-      wall: "#c47840",
-      fog: "#d08040",
-      hemiSky: "#ffd4a8",
-      hemiGround: "#8a3a18",
-      board: "#c88848",
-    },
-    veg: {
-      name: "菜园",
-      objects: ["carrot", "cucumber", "corn", "eggplant"],
-      clear: "#6aaa48",
-      ground: "#4a6a28",
-      wall: "#3a6a28",
-      fog: "#a8c878",
-      hemiSky: "#e8ffd0",
-      hemiGround: "#3a4a18",
-      board: "#7a5a30",
-    },
-    flower: {
-      name: "花园",
-      objects: ["rose", "tulip", "daisy", "sunflower"],
-      clear: "#8ec8f0",
-      ground: "#3f6e32",
-      wall: "#3a7a32",
-      fog: "#b8d8e8",
-      hemiSky: "#f4fbff",
-      hemiGround: "#3a5a28",
-      board: "#9aa090",
-    },
-    pastry: {
-      name: "点心房",
-      objects: ["cake", "bread", "cheese", "onigiri"],
-      clear: "#f0d0b0",
-      ground: "#8a6a48",
-      wall: "#e8d4bc",
-      fog: "#e0c8a8",
-      hemiSky: "#fff4e8",
-      hemiGround: "#6a4a30",
-      board: "#f4e8d0",
-    },
-    candy: {
-      name: "糖果屋",
-      objects: ["lollipop", "chocolate", "macaron", "popsicle"],
-      clear: "#f090b8",
-      ground: "#c05078",
-      wall: "#f8b0c8",
-      fog: "#f0a0c0",
-      hemiSky: "#ffe8f4",
-      hemiGround: "#8a3050",
-      board: "#fff0f6",
-    },
-    stationery: {
-      name: "书桌",
-      objects: ["pencil", "eraser", "crayon", "ruler"],
-      clear: "#d4c4a4",
-      ground: "#6a5844",
-      wall: "#e8dcc4",
-      fog: "#c8b89a",
-      hemiSky: "#fff6e8",
-      hemiGround: "#5a4a38",
-      board: "#f2e6cc",
-    },
-  },
+  catalog: catalogSpec(),
+  themes: themeBlock(),
 
   cut: {
     minStrokeLength: 28,
     minChordLength: 18,
   },
 
+  orbit: {
+    yawPerPx: 0.008,
+    pitchPerPx: 0.006,
+    /** 右边转盘：滑一点就要明显转起来。 */
+    padYawPerPx: 0.024,
+    padPitchPerPx: 0.02,
+  },
+
   score: {
     maxScore: 100,
-    /** |切割比例 - 0.5| 达到或超过此值 → 0 分。边缘偏差是 0.5。 */
+    /** |切面位置 - 正中| 达到或超过此值 → 0 分。正中是 0，边缘是 0.5。 */
     missDeviation: 0.36,
     /** 越大越苛刻（靠近边缘掉分更快）。1 = 线性，2 = 中间更宽容。 */
-    curvePower: 1.55,
-    comboMinScore: 90,
+    curvePower: 1.35,
+    comboMinScore: 85,
     comboBonusPerStack: 0.12,
     perfectScore: 98,
-    /** 每局一次：断连击的那一刀如果分数不算太差（>= 此分），护盾抵消本该到来的game over（连击依旧清零）。 */
-    shieldMinScore: 70,
+  },
+
+  economy: {
+    /** 8 件常见合计约 95%，小隐藏约 3%，大隐藏约 1%。无保底。今日摊 ×2。 */
+    weight: { common: 16, rare: 4, secret: 1 },
+    dailyRareBoost: 2,
+    tokenStreak98: 10,
+    tokenStreak98Reward: 1,
+    tokenStreak100: 12,
+    tokenStreak100Reward: 1,
+    shareTokens: 2,
+    adTokens: 3,
+    prices: { retry: 5, guide: 2, summon: 10, summonSecret: 15 },
+    collectionMax: 10000,
   },
 
   feedback: {
@@ -162,7 +101,8 @@ export const CONFIG = {
     perfectDuration: 1.12,
     breakDuration: 1.28,
     slowMoScale: 0.34,
-    /** 3D 世界单位，两半分开的距离。 */
+    /** 两半分开距离 = 物体沿切线方向尺寸 × 这个比例。 */
+    splitGapShare: 0.1,
     splitDistance: 0.34,
     splitTilt: 0.1,
     splitYaw: 0.52,
@@ -170,22 +110,22 @@ export const CONFIG = {
     popupPeakScale: 1.35,
     shake: 0.045,
     perfectShake: 0.08,
-    gravity: 11.5,
-    splitKick: 1.28,
-    splitPop: 1.45,
-    bounce: 0.3,
+    gravity: 9.4,
+    splitKick: 0.52,
+    splitPop: 0.58,
+    bounce: 0.16,
     slowMoBody: 0.58,
   },
 
   audio: {
-    master: 0.22,
-    music: 0.075,
-    ambient: 0.028,
+    master: 0.7,
+    music: 0.75,
+    ambient: 0.03,
   },
 
   ui: {
-    title: "精准切割",
-    subtitle: "一天六站，斜着竖着横着切体积对半。连击断了这局就结束，每局有一次护盾能保命",
+    title: "对半切",
+    subtitle: "画面上直接划刀。右边滑动，转动物品。",
     cream: "#f3e6d0",
     creamDim: "rgba(243, 230, 208, 0.55)",
     accent: "#e07a3d",
@@ -193,5 +133,9 @@ export const CONFIG = {
     buttonText: "#2a1c12",
     hudShadow: "rgba(0, 0, 0, 0.45)",
     menuOverlay: "rgba(16, 12, 9, 0.28)",
+    /** 划刀线宽。会按物品屏幕大小再缩。 */
+    strokeLive: 2.35,
+    strokeCut: 1.85,
+    strokeMark: 1.7,
   },
 };

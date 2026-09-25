@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { getItem, WORLDS } from "./worlds.js?v=96";
 
 const SIZE = 512;
 
@@ -230,6 +231,51 @@ function paintWoodSide(ctx) {
     ctx.stroke();
   }
   addNoise(ctx, 18);
+}
+
+function parseHex(hex) {
+  const n = (hex || "#c8c0b0").replace("#", "");
+  const full = n.length === 3 ? n.split("").map((c) => c + c).join("") : n;
+  return {
+    r: parseInt(full.slice(0, 2), 16) || 200,
+    g: parseInt(full.slice(2, 4), 16) || 192,
+    b: parseInt(full.slice(4, 6), 16) || 176,
+  };
+}
+
+function mixHex(hex, toward, t) {
+  const a = parseHex(hex);
+  const b = toward === "white" ? { r: 255, g: 255, b: 255 } : { r: 24, g: 16, b: 12 };
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bl = Math.round(a.b + (b.b - a.b) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function paintTintFace(ctx, tint) {
+  fill(ctx, mixHex(tint, "white", 0.35));
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  ctx.strokeStyle = mixHex(tint, "black", 0.18);
+  ctx.lineWidth = 6;
+  for (let r = SIZE * 0.42; r > 20; r -= 28) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+  ctx.fillStyle = mixHex(tint, "white", 0.55);
+  ctx.fill();
+  addNoise(ctx, 16);
+}
+
+function paintTintSide(ctx, tint) {
+  paintSkin(ctx, [
+    [0, mixHex(tint, "black", 0.22)],
+    [0.45, tint],
+    [1, mixHex(tint, "black", 0.28)],
+  ], { stripe: true, spots: 18, spotColor: "rgba(0,0,0,0.08)" });
 }
 
 function paintCucumberSide(ctx) {
@@ -960,7 +1006,8 @@ export function makeThemeWall(themeId) {
   else if (themeId === "veg") paintVegBackdrop(ctx, W, H);
   else if (themeId === "pastry") paintPastryBackdrop(ctx, W, H);
   else if (themeId === "candy") paintCandyBackdrop(ctx, W, H);
-  else paintStallBackdrop(ctx, W, H);
+  else if (themeId === "fruit") paintStallBackdrop(ctx, W, H);
+  else paintWorldBackdrop(ctx, W, H, themeId);
   const texture = toTexture(canvas);
   texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
@@ -999,6 +1046,24 @@ function paintStallBackdrop(ctx, W, H) {
   }
   ctx.fillStyle = "#6a3214";
   ctx.fillRect(0, H * 0.86, W, H * 0.14);
+}
+
+function paintWorldBackdrop(ctx, W, H, themeId) {
+  const theme = WORLDS[themeId] || WORLDS.fruit;
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, theme.hemiSky);
+  g.addColorStop(0.5, theme.wall);
+  g.addColorStop(1, theme.ground);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = theme.board;
+  for (let i = 0; i < 16; i += 1) {
+    ctx.beginPath();
+    ctx.arc(40 + i * 62, H * 0.72, 16 + (i % 4) * 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = theme.ground;
+  ctx.fillRect(0, H * 0.84, W, H * 0.16);
 }
 
 function paintGardenBackdrop(ctx, W, H) {
@@ -1179,6 +1244,13 @@ export function makeThemeGround(themeId) {
       ctx.lineTo(x, SIZE);
       ctx.stroke();
     }
+  } else if (WORLDS[themeId]) {
+    const theme = WORLDS[themeId];
+    fill(ctx, theme.ground);
+    ctx.fillStyle = theme.board;
+    for (let i = 0; i < 40; i += 1) {
+      ctx.fillRect((i * 67) % SIZE, (i * 41) % SIZE, 18, 10);
+    }
   } else {
     for (let y = 0; y < SIZE; y += 64) {
       for (let x = 0; x < SIZE; x += 64) {
@@ -1311,7 +1383,20 @@ export function makeThemeBoard(themeId) {
   else if (themeId === "veg") paintSoilBoard(ctx);
   else if (themeId === "pastry") paintMarbleBoard(ctx);
   else if (themeId === "candy") paintCandyBoard(ctx);
-  else paintStallBoard(ctx);
+  else if (themeId === "fruit") paintStallBoard(ctx);
+  else {
+    const theme = WORLDS[themeId] || WORLDS.kitchen;
+    fill(ctx, theme.board);
+    ctx.strokeStyle = "rgba(0,0,0,0.22)";
+    ctx.lineWidth = 8;
+    for (let x = 0; x < SIZE; x += 48) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, SIZE);
+      ctx.stroke();
+    }
+    addNoise(ctx, 20);
+  }
   const texture = toTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
@@ -1341,13 +1426,15 @@ export function makeAwningTexture() {
 
 export function makeSliceTexture(type) {
   const { canvas, ctx } = makeCanvas();
-  (FACE_PAINTERS[type] || paintWoodRings)(ctx);
+  if (FACE_PAINTERS[type]) FACE_PAINTERS[type](ctx);
+  else paintTintFace(ctx, getItem(type).tint);
   return toTexture(canvas);
 }
 
 export function makeSideTexture(type) {
   const { canvas, ctx } = makeCanvas();
-  (SIDE_PAINTERS[type] || paintWoodSide)(ctx);
+  if (SIDE_PAINTERS[type]) SIDE_PAINTERS[type](ctx);
+  else paintTintSide(ctx, getItem(type).tint);
   const texture = toTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;

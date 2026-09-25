@@ -34,5 +34,43 @@ body {
 
 #game {
   z-index: 1;
-  cursor: crosshair;
+  cursor: default;
+}
+
+#boot-load {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #1c1712;
+  color: #f3e6d0;
+  font-family: "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+}
+
+#boot-load-title {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+#boot-load-text {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+#boot-load-track {
+  width: min(240px, 70vw);
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(243, 230, 208, 0.16);
+  overflow: hidden;
+}
+
+#boot-load-bar {
+  width: 0;
+  height: 100%;
+  background: #e07a3d;
 }

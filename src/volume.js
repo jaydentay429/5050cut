@@ -1,9 +1,11 @@
 /**
- * 切开后两边体积。几何中点 ≠ 体积中点（梨、草莓、花尤其明显）。
+ * 切开后两边体积。
  * 任意平面：nx x + ny y + nz z = d（物体局部坐标）。
  */
 import { CONFIG } from "./config.js";
-import { BOX_TYPES, maxRadius, objectHeight, radiusAt } from "./shapeProfile.js";
+import { BOX_TYPES, objectHeight, radiusAt } from "./shapeProfile.js?v=68";
+import { getItem } from "./worlds.js?v=96";
+import { fruitRestSize, fruitRestSpan } from "./fruitAssets.js?v=99";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -52,9 +54,9 @@ export function volumeSharePlane(type, length, nx, ny, nz, d) {
     const hx = length / 2;
     const hy = spec.height / 2;
     const hz = spec.depth / 2;
-    const gx = 28;
-    const gy = 10;
-    const gz = 10;
+    const gx = 48;
+    const gy = 24;
+    const gz = 24;
     const cell = (length / gx) * (spec.height / gy) * (spec.depth / gz);
     for (let i = 0; i < gx; i += 1) {
       const x = -hx + ((i + 0.5) / gx) * length;
@@ -70,12 +72,37 @@ export function volumeSharePlane(type, length, nx, ny, nz, d) {
     return packShare(left, right);
   }
 
-  if (type === "cake") {
+  if (getItem(type).family === "cluster") {
+    const rest = fruitRestSize(type);
+    const hx = length / 2;
+    const hy = objectHeight(type, length) / 2;
+    const span = fruitRestSpan(type);
+    const hz = rest && span ? (length * rest.z) / span / 2 : hy * 0.85;
+    const gx = 36;
+    const gy = 32;
+    const gz = 32;
+    const cell = ((2 * hx) / gx) * ((2 * hy) / gy) * ((2 * hz) / gz);
+    for (let i = 0; i < gx; i += 1) {
+      const x = -hx + ((i + 0.5) / gx) * 2 * hx;
+      for (let j = 0; j < gy; j += 1) {
+        const y = -hy + ((j + 0.5) / gy) * 2 * hy;
+        for (let k = 0; k < gz; k += 1) {
+          const z = -hz + ((k + 0.5) / gz) * 2 * hz;
+          if (nx * x + ny * y + nz * z < d) left += cell;
+          else right += cell;
+        }
+      }
+    }
+    return packShare(left, right);
+  }
+
+  if (type === "cake" || getItem(type).family === "cake") {
+    const spec = CONFIG.catalog[type] || CONFIG.catalog.cake;
     const r = length * 0.46;
-    const hy = CONFIG.catalog.cake.height / 2;
-    const gx = 22;
-    const gy = 12;
-    const gz = 22;
+    const hy = spec.height / 2;
+    const gx = 40;
+    const gy = 20;
+    const gz = 40;
     const cell = ((2 * r) / gx) * ((2 * hy) / gy) * ((2 * r) / gz);
     for (let i = 0; i < gx; i += 1) {
       const x = -r + ((i + 0.5) / gx) * 2 * r;
@@ -92,7 +119,7 @@ export function volumeSharePlane(type, length, nx, ny, nz, d) {
     return packShare(left, right);
   }
 
-  const steps = 80;
+  const steps = 200;
   const dx = length / steps;
   for (let i = 0; i < steps; i += 1) {
     const t = (i + 0.5) / steps;

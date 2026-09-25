@@ -6,7 +6,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>精准切割</title>
+    <title>对半切</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
     <script type="importmap">
       {
@@ -19,6 +20,13 @@
   <body>
     <canvas id="scene"></canvas>
     <canvas id="game"></canvas>
+    <div id="boot-load" aria-live="polite">
+      <p id="boot-load-title">对半切</p>
+      <p id="boot-load-text">摆桌子…</p>
+      <div id="boot-load-track">
+        <div id="boot-load-bar"></div>
+      </div>
+    </div>
     <script>
       window.addEventListener("error", function (event) {
         if (document.getElementById("boot-error")) return;
@@ -26,10 +34,19 @@
         el.id = "boot-error";
         el.style.cssText =
           "position:fixed;inset:16px;z-index:99;margin:0;background:#2a1210;color:#ffd4c8;padding:16px;white-space:pre-wrap;overflow:auto;font:13px ui-monospace,monospace";
-        el.textContent = (event.error && event.error.stack) || event.message || String(event);
+        el.textContent = [
+          event.message || String(event),
+          event.filename ? event.filename + ":" + event.lineno + ":" + event.colno : "",
+          event.error && event.error.stack,
+        ]
+          .filter(Boolean)
+          .join("\n");
         document.body.appendChild(el);
       });
     </script>
-    <script type="module" src="src/main.js"></script>
+    <script>
+      window.ASSET_BASE = window.ASSET_BASE || "";
+    </script>
+    <script type="module" src="src/main.js?v=102"></script>
   </body>
 </html>

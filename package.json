@@ -1,0 +1,23 @@
+{
+  "name": "precise-cut",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "restore-glb": "node scripts/restore-glb.mjs",
+    "compress-glb": "node scripts/compress-glb.mjs",
+    "pack-pages": "node scripts/pack-pages.mjs",
+    "deploy:pages": "node scripts/pack-pages.mjs && wrangler pages deploy dist --project-name precise-cut",
+    "deploy:r2": "node scripts/upload-r2.mjs",
+    "preview": "python3 -m http.server 8765"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "draco3d": "^1.5.7",
+    "meshoptimizer": "^1.2.0",
+    "sharp": "^0.35.4",
+    "three": "^0.170.0",
+    "wrangler": "^4.139.0"
+  }
+}

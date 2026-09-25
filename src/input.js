@@ -48,12 +48,18 @@ export function attachInput(canvas, handlers) {
     event.preventDefault();
   }
 
+  function onWheel(event) {
+    event.preventDefault();
+    handlers.onWheel?.(event.deltaY);
+  }
+
   const options = { passive: false };
   canvas.addEventListener("pointerdown", onPointerDown, options);
   canvas.addEventListener("pointermove", onPointerMove, options);
   canvas.addEventListener("pointerup", endPointer, options);
   canvas.addEventListener("pointercancel", endPointer, options);
   canvas.addEventListener("contextmenu", onContextMenu);
+  canvas.addEventListener("wheel", onWheel, options);
 
   canvas._inputCleanup = () => {
     canvas.removeEventListener("pointerdown", onPointerDown, options);
@@ -61,6 +67,7 @@ export function attachInput(canvas, handlers) {
     canvas.removeEventListener("pointerup", endPointer, options);
     canvas.removeEventListener("pointercancel", endPointer, options);
     canvas.removeEventListener("contextmenu", onContextMenu);
+    canvas.removeEventListener("wheel", onWheel, options);
   };
 }
 
