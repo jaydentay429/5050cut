@@ -2,9 +2,9 @@
  * 沿长轴 t∈[0,1] 的半径轮廓。体积积分和旋转体网格共用这一份。
  */
 
-import { CONFIG } from "./config.js?v=97";
-import { boxTypeSet, getItem } from "./worlds.js?v=96";
-import { fruitRestSize, fruitRestSpan } from "./fruitAssets.js?v=99";
+import { CONFIG } from "./config.js?v=100";
+import { boxTypeSet, getItem } from "./worlds.js?v=99";
+import { fruitRestSize, fruitRestSpan } from "./fruitAssets.js?v=102";
 
 export function axisLength(type, requested) {
   const item = getItem(type);

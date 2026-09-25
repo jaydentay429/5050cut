@@ -2,7 +2,7 @@
  * 成就目录。解锁条件只读快照，发币在 Game.flushAchievements。
  */
 import { CONFIG } from "./config.js?v=91";
-import { getItem } from "./worlds.js?v=96";
+import { getItem } from "./worlds.js?v=99";
 import { hasGrandTrophy, stallTrophy } from "./progress.js";
 
 export const ACHIEVEMENTS = [

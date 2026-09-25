@@ -2,12 +2,12 @@
  * 入口：创建 Canvas / WebGL、处理窗口尺寸、驱动游戏循环。
  * 浏览器专属 API（window / document / canvas）集中在这一文件、input.js 和 audio.js。
  */
-import { Game } from "./game.js?v=102";
+import { Game } from "./game.js?v=105";
 import { attachInput } from "./input.js?v=78";
 import { catalogTypes } from "./object.js?v=70";
-import { preloadFruitAssets } from "./fruitAssets.js?v=99";
+import { preloadFruitAssets } from "./fruitAssets.js?v=102";
 import { createScene } from "./scene.js?v=81";
-import { CONFIG } from "./config.js?v=97";
+import { CONFIG } from "./config.js?v=100";
 
 const sceneCanvas = document.getElementById("scene");
 const uiCanvas = document.getElementById("game");
@@ -23,6 +23,15 @@ function setLoad(ratio, label) {
 
 function hideLoad() {
   loadRoot?.remove();
+}
+
+function isLocalPreview() {
+  try {
+    const host = window.location.hostname;
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return false;
+  }
 }
 
 async function boot() {
@@ -81,11 +90,12 @@ async function boot() {
   resize();
   const preview = new URLSearchParams(window.location.search).get("item");
   const codexParam = new URLSearchParams(window.location.search).get("codex");
-  if (CONFIG.unlockAllCodex || codexParam === "all") game.previewFullCodex();
+  const fullCodex = CONFIG.unlockAllCodex || codexParam === "all" || isLocalPreview();
+  if (fullCodex) game.previewFullCodex();
   if (preview && catalogTypes().includes(preview)) game.previewItem(preview);
   else {
     game.showCover();
-    if (codexParam !== null) {
+    if (codexParam !== null || isLocalPreview()) {
       game.openCodex();
       if (codexParam && codexParam !== "all" && catalogTypes().includes(codexParam)) {
         game.inspectCodex(codexParam);

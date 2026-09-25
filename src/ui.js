@@ -1,4 +1,4 @@
-import { CONFIG } from "./config.js?v=97";
+import { CONFIG } from "./config.js?v=100";
 import { TYPE_LABELS } from "./object.js?v=70";
 
 const TROPHY_CHIP = {

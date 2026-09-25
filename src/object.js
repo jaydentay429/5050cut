@@ -1,6 +1,6 @@
 import { CONFIG } from "./config.js";
 import { axisLength } from "./shapeProfile.js?v=69";
-import { dailyThemeId, ITEMS } from "./worlds.js?v=96";
+import { dailyThemeId, ITEMS } from "./worlds.js?v=99";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));

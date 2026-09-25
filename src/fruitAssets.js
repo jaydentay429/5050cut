@@ -5,9 +5,9 @@ import * as THREE from "three";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { DRACOLoader } from "../vendor/DRACOLoader.js";
 import { RGBELoader } from "../vendor/RGBELoader.js";
-import { CONFIG } from "./config.js?v=97";
+import { CONFIG } from "./config.js?v=100";
 import { assetUrl } from "./assetUrl.js?v=91";
-import { getItem, WORLD_BACKDROP, WORLDS } from "./worlds.js?v=96";
+import { getItem, WORLD_BACKDROP, WORLDS } from "./worlds.js?v=99";
 
 export const FRUIT_TYPES = [...WORLDS.fruit.objects];
 

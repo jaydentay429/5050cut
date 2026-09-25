@@ -4,8 +4,8 @@
  */
 import { CONFIG } from "./config.js";
 import { BOX_TYPES, objectHeight, radiusAt } from "./shapeProfile.js?v=68";
-import { getItem } from "./worlds.js?v=96";
-import { fruitRestSize, fruitRestSpan } from "./fruitAssets.js?v=99";
+import { getItem } from "./worlds.js?v=99";
+import { fruitRestSize, fruitRestSpan } from "./fruitAssets.js?v=102";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
