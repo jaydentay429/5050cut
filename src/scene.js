@@ -3,17 +3,17 @@
  * WebGL 只出现在这一文件（以及它调用的 catalog / sliceFace）。
  */
 import * as THREE from "three";
-import { CONFIG } from "./config.js?v=109";
+import { CONFIG } from "./config.js?v=110";
 import {
   createMaterials,
   createPlaneCap,
   createWholeObject,
   disposeMaterials,
   objectExtents,
-} from "./catalog.js?v=77";
-import { fruitEnvMap, fruitStallMaps, isFruitType, worldBackdrop } from "./fruitAssets.js?v=115";
-import { getItem } from "./worlds.js?v=101";
-import { volumeShareFromObject } from "./meshVolume.js?v=74";
+} from "./catalog.js?v=78";
+import { fruitEnvMap, fruitStallMaps, isFruitType, worldBackdrop } from "./fruitAssets.js?v=116";
+import { getItem } from "./worlds.js?v=102";
+import { volumeShareFromObject } from "./meshVolume.js?v=75";
 import { makeAwningTexture, makeThemeBoard, makeThemeGround, makeThemeWall } from "./sliceFace.js";
 
 function disposeObject(root) {

@@ -5,10 +5,10 @@ import * as THREE from "three";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { DRACOLoader } from "../vendor/DRACOLoader.js";
 import { RGBELoader } from "../vendor/RGBELoader.js";
-import { CONFIG } from "./config.js?v=109";
-import { t } from "./i18n.js?v=138";
-import { assetUrl } from "./assetUrl.js?v=91";
-import { getItem, WORLD_BACKDROP, WORLDS } from "./worlds.js?v=101";
+import { CONFIG } from "./config.js?v=110";
+import { t } from "./i18n.js?v=139";
+import { assetUrl } from "./assetUrl.js?v=92";
+import { getItem, WORLD_BACKDROP, WORLDS } from "./worlds.js?v=102";
 
 export const FRUIT_TYPES = [...WORLDS.fruit.objects];
 
@@ -48,7 +48,7 @@ function isCoarse() {
 function ensureLoader() {
   if (gltfLoader) return gltfLoader;
   dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath(new URL("../vendor/draco/", import.meta.url).href);
+  dracoLoader.setDecoderPath("/vendor/draco/");
   dracoLoader.preload();
   gltfLoader = new GLTFLoader();
   gltfLoader.setDRACOLoader(dracoLoader);
@@ -235,7 +235,7 @@ export async function preloadFruitAssets(renderer, onProgress) {
   const coarse = isCoarse();
   if (!coarse) {
     try {
-      const hdr = await new RGBELoader().loadAsync(assetUrl("assets/env/abandoned_greenhouse_1k.hdr"));
+      const hdr = await new RGBELoader().loadAsync(assetUrl("/assets/env/abandoned_greenhouse_1k.hdr"));
       hdr.mapping = THREE.EquirectangularReflectionMapping;
       if (renderer) {
         const pmrem = new THREE.PMREMGenerator(renderer);
@@ -251,7 +251,7 @@ export async function preloadFruitAssets(renderer, onProgress) {
   }
   onProgress?.({ ratio: 0.55, label: t("lights") });
   try {
-    woodMap = await new THREE.TextureLoader().loadAsync(assetUrl("assets/env/wood_table_diff_1k.jpg"));
+    woodMap = await new THREE.TextureLoader().loadAsync(assetUrl("/assets/env/wood_table_diff_1k.jpg"));
     woodMap.colorSpace = THREE.SRGBColorSpace;
     woodMap.wrapS = THREE.RepeatWrapping;
     woodMap.wrapT = THREE.RepeatWrapping;

@@ -2,8 +2,8 @@
  * 广告：Google H5 Ad Placement API。无 client / 本机走 mock。
  * 只从 platform.js 调用。
  */
-import { CONFIG } from "./config.js?v=104";
-import { setFocusMuted } from "./audio.js?v=66";
+import { CONFIG } from "./config.js?v=105";
+import { setFocusMuted } from "./audio.js?v=67";
 
 let hooks = { pause: () => {}, resume: () => {} };
 let inited = false;
