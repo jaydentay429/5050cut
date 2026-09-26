@@ -387,38 +387,50 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     const headerH = Math.max(78, 86 * s);
     const section = Math.max(28, 32 * s);
     const menuH = Math.max(42, 46 * s);
-    const stack =
-      headerH +
-      section +
-      buyH * 3 +
-      gap * 2 +
-      section +
-      shareH +
-      12 +
-      menuH;
-        const panelY = Math.max(padT + 52, Math.min(height * 0.1, (height - stack - padB - 52) / 2));
-    let y = panelY + headerH + section;
-    const buy = (id, name, key, cost) => ({
-      id,
-      label: name,
-      hint: SHOP_HINTS[key](),
-      price: cost,
-      hold: inv[key] || 0,
-      kind: "shopBuy",
-      x,
-      y: 0,
-      w,
-      h: buyH,
-    });
+    const measure = shopMeasureContext();
+    const buy = (id, name, key, cost) => {
+      const button = {
+        id,
+        label: name,
+        hint: SHOP_HINTS[key](),
+        price: cost,
+        hold: inv[key] || 0,
+        kind: "shopBuy",
+        x,
+        y: 0,
+        w,
+        h: buyH,
+        shopBaseH: buyH,
+      };
+      button.shopMetrics = shopBuyMetrics(measure, button, buyH);
+      button.h = button.shopMetrics.h;
+      return button;
+    };
     const buttons = {
       "buy-retry": buy("buy-retry", t("retry"), "retry", prices.retry ?? 3),
       "buy-guide": buy("buy-guide", t("guide"), "guide", prices.guide ?? 2),
       "buy-summon": buy("buy-summon", t("summon"), "summon", prices.summon ?? 5),
     };
-    buttons["buy-retry"].y = y;
-    buttons["buy-guide"].y = y + buyH + gap;
-    buttons["buy-summon"].y = y + (buyH + gap) * 2;
-    const shareY = y + (buyH + gap) * 3 + section;
+    const buyIds = ["buy-retry", "buy-guide", "buy-summon"];
+    const buyStack = buyIds.reduce((sum, id) => sum + buttons[id].h, 0) + gap * (buyIds.length - 1);
+    const stack =
+      headerH +
+      section +
+      buyStack +
+      gap +
+      section +
+      shareH +
+      section +
+      shareH +
+      12 +
+      menuH;
+    const panelY = Math.max(padT + 52, Math.min(height * 0.1, (height - stack - padB - 52) / 2));
+    let y = panelY + headerH + section;
+    for (const id of buyIds) {
+      buttons[id].y = y;
+      y += buttons[id].h + gap;
+    }
+    const shareY = y + section;
     const sw = (w - 12) / 3;
     const shareLabel = (key, name) => (ready[key] === false ? t("claimed") : `${name} +${shareN}`);
     buttons["share-fb"] = {
@@ -881,12 +893,208 @@ export function hitButton(buttons, point) {
   return null;
 }
 
+let shopMeasureCtx = null;
+
+function shopMeasureContext() {
+  if (shopMeasureCtx) return shopMeasureCtx;
+  try {
+    shopMeasureCtx = document.createElement("canvas").getContext("2d");
+  } catch {
+    shopMeasureCtx = null;
+  }
+  return shopMeasureCtx;
+}
+
+function breakLongToken(ctx, token, maxWidth) {
+  const lines = [];
+  let line = "";
+  for (const char of token) {
+    const next = line + char;
+    if (line && ctx.measureText(next).width > maxWidth) {
+      lines.push(line);
+      line = char;
+    } else {
+      line = next;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function wrapLines(ctx, text, maxWidth) {
+  const source = String(text || "");
+  if (!source) return [];
+  const tokens = /\s/.test(source) ? source.split(/(\s+)/).filter(Boolean) : [...source];
+  const lines = [];
+  let line = "";
+  const commit = () => {
+    const trimmed = line.trimEnd();
+    if (trimmed) lines.push(trimmed);
+    line = "";
+  };
+  for (const token of tokens) {
+    if (!line && !token.trim()) continue;
+    const next = line + token;
+    if (line && ctx.measureText(next).width > maxWidth) {
+      commit();
+      const rest = token.trimStart();
+      if (!rest) continue;
+      if (ctx.measureText(rest).width > maxWidth) {
+        const broken = breakLongToken(ctx, rest, maxWidth);
+        lines.push(...broken.slice(0, -1));
+        line = broken[broken.length - 1] || "";
+      } else {
+        line = rest;
+      }
+    } else if (!line && ctx.measureText(token.trimStart()).width > maxWidth) {
+      const broken = breakLongToken(ctx, token.trim(), maxWidth);
+      lines.push(...broken.slice(0, -1));
+      line = broken[broken.length - 1] || "";
+    } else {
+      line = next;
+    }
+  }
+  commit();
+  return lines.length ? lines : [source];
+}
+
+/**
+ * Shop 行把说明和右侧价格 /「Own N」放在同一颗按钮里。
+ * 右侧按文字宽度占一块不收缩的区域，说明只在左侧换行，避免叠字。
+ */
+function shopBuyMetrics(ctx, button, baseH) {
+  const titleSize = Math.max(15, baseH * 0.3);
+  const hintSize = Math.max(11, baseH * 0.22);
+  const priceSize = Math.max(13, baseH * 0.26);
+  const holdSize = hintSize;
+  const padX = 18;
+  const padRight = 16;
+  const colGap = 12;
+  const priceText = `${button.price}${t("tokenUnit")}`;
+  const holdText = t("hold", { n: button.hold ?? 0 });
+  const hint = button.hint || "";
+  let leftW = Math.max(24, button.w - padX - padRight - colGap);
+  if (ctx) {
+    ctx.font = font(priceSize, "700");
+    const priceW = ctx.measureText(priceText).width;
+    ctx.font = font(holdSize, "600");
+    const holdW = ctx.measureText(holdText).width;
+    leftW = Math.max(24, button.w - padX - padRight - colGap - Math.max(priceW, holdW));
+  }
+
+  let titleLines = [button.label];
+  let hintLines = hint ? [hint] : [];
+  let fits = true;
+  if (ctx) {
+    ctx.font = font(titleSize, "800");
+    const titleW = ctx.measureText(button.label).width;
+    ctx.font = font(hintSize, "600");
+    const hintW = hint ? ctx.measureText(hint).width : 0;
+    fits = titleW <= leftW && hintW <= leftW;
+    if (!fits) {
+      ctx.font = font(titleSize, "800");
+      titleLines = wrapLines(ctx, button.label, leftW);
+      ctx.font = font(hintSize, "600");
+      hintLines = hint ? wrapLines(ctx, hint, leftW) : [];
+    }
+  }
+
+  if (fits) {
+    return {
+      h: baseH,
+      titleSize,
+      hintSize,
+      priceSize,
+      holdSize,
+      padX,
+      padRight,
+      leftW,
+      titleLines,
+      hintLines,
+      priceText,
+      holdText,
+      titleLH: titleSize,
+      hintLH: hintSize,
+      titleCenters: [baseH * 0.38],
+      hintCenters: hintLines.length ? [baseH * 0.7] : [],
+      priceCenter: baseH * 0.36,
+      holdCenter: baseH * 0.68,
+    };
+  }
+
+  const titleLH = titleSize * 1.2;
+  const hintLH = hintSize * 1.3;
+  const padY = Math.max(11, baseH * 0.16);
+  const gapY = Math.max(5, baseH * 0.08);
+  const hintBlock = hintLines.length ? gapY + hintLH * hintLines.length : 0;
+  const h = Math.max(baseH, padY + titleLH * titleLines.length + hintBlock + padY);
+  const titleCenters = titleLines.map((_, i) => padY + titleLH * (i + 0.5));
+  const hintOrigin = padY + titleLH * titleLines.length + gapY;
+  const hintCenters = hintLines.map((_, i) => hintOrigin + hintLH * (i + 0.5));
+  return {
+    h,
+    titleSize,
+    hintSize,
+    priceSize,
+    holdSize,
+    padX,
+    padRight,
+    leftW,
+    titleLines,
+    hintLines,
+    priceText,
+    holdText,
+    titleLH,
+    hintLH,
+    titleCenters,
+    hintCenters,
+    priceCenter: titleCenters[0],
+    holdCenter: hintCenters[0] ?? titleCenters[0],
+  };
+}
+
+function assignShopTextBox(ctx, button) {
+  const m = button.shopMetrics;
+  if (!m) return;
+  const hintLines = m.hintLines || [];
+  ctx.font = font(m.hintSize, "600");
+  const widths = hintLines.map((line) => ctx.measureText(line).width);
+  const scrollWidth = widths.length ? Math.max(...widths) : 0;
+  const firstHint = m.hintCenters[0];
+  const hint =
+    firstHint == null
+      ? null
+      : {
+          x: button.x + m.padX,
+          y: button.y + firstHint - m.hintLH / 2,
+          width: scrollWidth,
+          height: m.hintLH * hintLines.length,
+          scrollWidth,
+          clientWidth: m.leftW,
+          text: hintLines.join("\n"),
+        };
+  ctx.font = font(m.holdSize, "600");
+  const holdW = ctx.measureText(m.holdText).width;
+  button.shopTextBox = {
+    id: button.id,
+    hint,
+    own: {
+      x: button.x + button.w - m.padRight - holdW,
+      y: button.y + m.holdCenter - m.holdSize / 2,
+      width: holdW,
+      height: m.holdSize,
+      text: m.holdText,
+    },
+  };
+}
+
 function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) {
   if (!button) return;
   const spec = CONFIG.ui;
 
   if (button.kind === "codex") return;
   if (button.kind === "shopBuy") {
+    const m = button.shopMetrics || shopBuyMetrics(ctx, button, button.shopBaseH || button.h);
     const fill = pressed ? spec.accentDown : spec.accent;
     ctx.save();
     ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
@@ -905,21 +1113,26 @@ function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) 
     ctx.fillStyle = spec.buttonText;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.font = font(Math.max(15, button.h * 0.3), "800");
-    ctx.fillText(button.label, button.x + 18, button.y + button.h * 0.38);
-    if (button.hint) {
+    ctx.font = font(m.titleSize, "800");
+    m.titleLines.forEach((line, i) => {
+      ctx.fillText(line, button.x + m.padX, button.y + m.titleCenters[i]);
+    });
+    if (m.hintLines.length) {
       ctx.globalAlpha = 0.72;
-      ctx.font = font(Math.max(11, button.h * 0.22), "600");
-      ctx.fillText(button.hint, button.x + 18, button.y + button.h * 0.7);
+      ctx.font = font(m.hintSize, "600");
+      m.hintLines.forEach((line, i) => {
+        ctx.fillText(line, button.x + m.padX, button.y + m.hintCenters[i]);
+      });
       ctx.globalAlpha = 1;
     }
     ctx.textAlign = "right";
-    ctx.font = font(Math.max(13, button.h * 0.26), "700");
-    ctx.fillText(`${button.price}${t("tokenUnit")}`, button.x + button.w - 16, button.y + button.h * 0.36);
-    ctx.font = font(Math.max(11, button.h * 0.22), "600");
+    ctx.font = font(m.priceSize, "700");
+    ctx.fillText(m.priceText, button.x + button.w - m.padRight, button.y + m.priceCenter);
+    ctx.font = font(m.holdSize, "600");
     ctx.globalAlpha = 0.7;
-    ctx.fillText(t("hold", { n: button.hold ?? 0 }), button.x + button.w - 16, button.y + button.h * 0.68);
+    ctx.fillText(m.holdText, button.x + button.w - m.padRight, button.y + m.holdCenter);
     ctx.globalAlpha = 1;
+    assignShopTextBox(ctx, button);
     return;
   }
   if (pulse) {
@@ -2106,10 +2319,35 @@ function drawSparks(ctx, sparks) {
   ctx.restore();
 }
 
+function publishShopcheck(model) {
+  try {
+    if (typeof location === "undefined" || !new URLSearchParams(location.search).has("shopcheck")) return;
+    const buttons = model.buttons || {};
+    globalThis.__uiButtons = Object.values(buttons)
+      .filter((button) => button && button.id && !String(button.id).startsWith("_"))
+      .map((button) => ({
+        id: button.id,
+        x: button.x,
+        y: button.y,
+        w: button.w,
+        h: button.h,
+        label: button.label || "",
+      }));
+    if (model.state === "shop") {
+      globalThis.__shopTextBoxes = ["buy-retry", "buy-guide", "buy-summon"]
+        .map((id) => buttons[id]?.shopTextBox)
+        .filter(Boolean);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 export function renderUI(ctx, model) {
   const { width, height, state } = model;
   const paintOverlay = () => {
     if (!model.paused && model.pendingPrompt) drawBuyConfirm(ctx, width, height, model);
+    publishShopcheck(model);
   };
 
   if (state === "menu") {

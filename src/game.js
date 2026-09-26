@@ -14,7 +14,7 @@ import {
   scoreFromDeviation,
 } from "./score.js";
 import { collectionScore, hasGrandTrophy, stallStars, stallTrophy, unlockedStallIds } from "./progress.js";
-import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=139";
+import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=140";
 import { ACHIEVEMENTS, achievementSnapshot, pendingAchievements } from "./achievements.js?v=139";
 import { loadAchievements, loadCodex, loadEconomy, loadHighScore, saveAchievements, saveEconomy, saveHighScore, todayKey, unlockCodexEntry } from "./storage.js";
 import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=12";
