@@ -3,15 +3,15 @@
  * WebGL 只出现在这一文件（以及它调用的 catalog / sliceFace）。
  */
 import * as THREE from "three";
-import { CONFIG } from "./config.js?v=110";
+import { CONFIG } from "./config.js?v=105";
 import {
   createMaterials,
   createPlaneCap,
   createWholeObject,
   disposeMaterials,
   objectExtents,
-} from "./catalog.js?v=85";
-import { fruitEnvMap, fruitStallMaps, isFruitType, worldBackdrop } from "./fruitAssets.js?v=123";
+} from "./catalog.js?v=86";
+import { fruitEnvMap, fruitStallMaps, isFruitType, worldBackdrop } from "./fruitAssets.js?v=124";
 import { getItem } from "./worlds.js?v=102";
 import { volumeShareFromObject } from "./meshVolume.js?v=75";
 import { makeAwningTexture, makeThemeBoard, makeThemeGround, makeThemeWall } from "./sliceFace.js";

@@ -1,5 +1,5 @@
 import { t } from "./i18n.js?v=146";
-import { CONFIG } from "./config.js";
+import { CONFIG } from "./config.js?v=105";
 
 export function createScoreState() {
   return {

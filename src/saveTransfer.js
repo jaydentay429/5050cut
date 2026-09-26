@@ -5,7 +5,7 @@
  * 备份键不进存档码，避免 localStorage 里叠多份备份。
  * 昵称必须已经是改名弹窗 cleanBoardName 的结果；头衔必须是空或成就 id。否则整份拒绝。
  */
-import { ACHIEVEMENTS } from "./achievements.js?v=139";
+import { ACHIEVEMENTS } from "./achievements.js?v=140";
 
 export const CODE_PREFIX = "5050CUT1:";
 export const BACKUP_KEY = "perfect-slice-backup";

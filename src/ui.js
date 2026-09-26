@@ -275,16 +275,37 @@ function langButton(width, height, place = "top") {
   };
 }
 
-function layoutLangPick(width, height) {
+/** 语言选择器和里面三颗按钮共用这一份尺寸，取消键始终落在面板底边之上。 */
+export function langPickFrame(width, height) {
   const s = uiScale(width, height);
   const boxW = Math.min(320, width - 40);
-  const boxH = Math.max(220, 236 * s);
-  const boxX = (width - boxW) / 2;
-  const boxY = height * 0.36;
   const btnH = Math.max(46, 50 * s);
+  const cancelH = Math.max(42, 46 * s);
   const gap = 10;
   const inner = 20;
-  const y0 = boxY + Math.max(64, 72 * s);
+  const header = Math.max(64, 72 * s);
+  const buttonsBottom = header + (btnH + gap) * 2 + cancelH;
+  const boxH = Math.max(220, 236 * s, buttonsBottom + inner);
+  let boxY = height * 0.36;
+  if (boxY + boxH > height - 8) boxY = Math.max(8, height - boxH - 8);
+  return {
+    s,
+    boxW,
+    boxH,
+    boxX: (width - boxW) / 2,
+    boxY,
+    btnH,
+    cancelH,
+    gap,
+    inner,
+    header,
+    y0: boxY + header,
+  };
+}
+
+function layoutLangPick(width, height) {
+  const frame = langPickFrame(width, height);
+  const { boxX, boxW, btnH, cancelH, gap, inner, y0 } = frame;
   return {
     "lang-hans": {
       id: "lang-hans",
@@ -309,7 +330,7 @@ function layoutLangPick(width, height) {
       x: boxX + inner,
       y: y0 + (btnH + gap) * 2,
       w: boxW - inner * 2,
-      h: Math.max(42, 46 * s),
+      h: cancelH,
     },
   };
 }
@@ -326,14 +347,10 @@ export function mergePromptButtons(buttons, width, height, prompt) {
 }
 
 function drawLangPick(ctx, width, height, model) {
-  const s = uiScale(width, height);
   const spec = CONFIG.ui;
   ctx.fillStyle = "rgba(8, 6, 4, 0.72)";
   ctx.fillRect(0, 0, width, height);
-  const boxW = Math.min(320, width - 40);
-  const boxH = Math.max(220, 236 * s);
-  const boxX = (width - boxW) / 2;
-  const boxY = height * 0.36;
+  const { s, boxW, boxH, boxX, boxY } = langPickFrame(width, height);
   fillPlate(ctx, boxX, boxY, boxW, boxH, 18, "rgba(16, 12, 9, 0.94)");
   ctx.strokeStyle = "rgba(243, 230, 208, 0.35)";
   ctx.lineWidth = 1.6;
@@ -885,11 +902,20 @@ export function hitOrbitPad(pad, point) {
   });
 }
 
+/** 图鉴顶栏要放下说明和左右两行统计，按字号留出高度，避免挤在同一行。 */
+function codexCaptionHeight(s) {
+  const padY = 8;
+  const name = Math.max(16, 18 * s);
+  const sub = Math.max(11, 12 * s);
+  const side = Math.max(12, 13 * s);
+  return Math.ceil(padY + name + 3 + sub + 6 + side + padY);
+}
+
 export function layoutCodex(width, height, muted = false, themeId = "fruit") {
   const p = layoutPad(width, height);
   const s = p.s;
   const backH = Math.max(40, 44 * s);
-  const captionH = Math.max(48, 52 * s);
+  const captionH = Math.max(48, 52 * s, codexCaptionHeight(s));
   const tabGap = Math.max(6, 7 * s);
   const tabH = Math.max(32, 36 * s);
   const tabCount = CONFIG.themes.order.length;
@@ -963,7 +989,18 @@ export function layoutCodex(width, height, muted = false, themeId = "fruit") {
     };
   });
 
-  return { buttons, panelTop, activeTheme: active, captionH, tabY, tabBarH, gridY, gridH, trophyStrip };
+  return {
+    buttons,
+    panelTop,
+    activeTheme: active,
+    captionH,
+    tabY,
+    tabBarH,
+    gridY,
+    gridH,
+    trophyStrip,
+    plate: { x: p.l, y: panelTop, w: width - p.l - p.r, h: captionH },
+  };
 }
 
 export function hitButton(buttons, point) {
@@ -1192,6 +1229,51 @@ function assignShopTextBox(ctx, button) {
   };
 }
 
+/** 分类标签左右各留 6px，文字宽不超过按钮内宽；一行放不下就缩字或拆成两行。 */
+const TAB_TEXT_INSET = 6;
+
+function drawTabLabel(ctx, button, cx) {
+  const maxW = Math.max(4, button.w - TAB_TEXT_INSET * 2);
+  const maxH = Math.max(8, button.h - 4);
+  const base = Math.max(11, button.h * 0.32);
+  const min = 8;
+  const cy = button.y + button.h / 2 + 1;
+  let size = fitFontSize(ctx, button.label, maxW, base, min, "700");
+  ctx.font = font(size, "700");
+  if (ctx.measureText(button.label).width <= maxW) {
+    ctx.fillText(button.label, cx, cy);
+    return;
+  }
+  size = Math.min(base, maxH / 2);
+  let lines = [button.label];
+  let fitted = false;
+  while (size >= min) {
+    ctx.font = font(size, "700");
+    const wrapped = wrapLines(ctx, button.label, maxW);
+    const tooWide = wrapped.some((line) => ctx.measureText(line).width > maxW);
+    const tooTall = wrapped.length * size * 1.05 > maxH;
+    if (wrapped.length <= 2 && !tooWide && !tooTall) {
+      lines = wrapped;
+      fitted = true;
+      break;
+    }
+    size = Math.round((size - 0.5) * 10) / 10;
+  }
+  if (!fitted) {
+    size = min;
+    lines = [button.label];
+    while (size > 6) {
+      ctx.font = font(size, "700");
+      if (ctx.measureText(button.label).width <= maxW && size <= maxH) break;
+      size = Math.round((size - 0.5) * 10) / 10;
+    }
+  }
+  ctx.font = font(size, "700");
+  const lh = size * 1.05;
+  const top = cy - (lh * (lines.length - 1)) / 2;
+  lines.forEach((line, i) => ctx.fillText(line, cx, top + i * lh));
+}
+
 function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) {
   if (!button) return;
   if (button.disabled) {
@@ -1283,8 +1365,10 @@ function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) 
       ctx.fillStyle = spec.creamDim;
       ctx.font = font(Math.max(10, button.h * 0.26), "600");
       ctx.fillText(button.sub, cx, button.y + button.h * 0.7);
+    } else if (button.kind === "tab") {
+      drawTabLabel(ctx, button, cx);
     } else {
-      ctx.font = font(Math.max(11, button.h * (button.kind === "yaw" ? 0.48 : button.kind === "tab" ? 0.32 : button.w < 120 ? 0.28 : 0.36)), "700");
+      ctx.font = font(Math.max(11, button.h * (button.kind === "yaw" ? 0.48 : button.w < 120 ? 0.28 : 0.36)), "700");
       ctx.fillText(button.label, cx, button.y + button.h / 2 + (button.kind === "yaw" ? -1 : 1));
     }
     if (locked) drawRewardSpinner(ctx, button);
@@ -1469,6 +1553,89 @@ function drawMenu(ctx, width, height, model) {
   drawTokenToast(ctx, width, height, model);
 }
 
+function fitFontSize(ctx, text, maxWidth, size, minSize, weight) {
+  let next = size;
+  ctx.font = font(next, weight);
+  while (next > minSize && ctx.measureText(text).width > maxWidth) {
+    next = Math.round((next - 0.5) * 10) / 10;
+    ctx.font = font(next, weight);
+  }
+  return next;
+}
+
+/**
+ * 顶栏分成上下两层：说明（或物品名 + 次数）居中，
+ * 解锁数和收藏分贴在底边左右，按剩余宽度缩字。
+ */
+function drawCodexCaption(ctx, width, height, model, layout, catalog, unlocked, total) {
+  const s = uiScale(width, height);
+  const spec = CONFIG.ui;
+  const plate = layout.plate;
+  const capY = plate.y;
+  const capH = plate.h;
+  const inset = 12;
+  const innerL = plate.x + inset;
+  const innerR = plate.x + plate.w - inset;
+  const innerW = Math.max(24, innerR - innerL);
+  const padY = 8;
+  const selected = model.codexSelected && catalog[model.codexSelected];
+  const leftText = `${unlocked} / ${total}`;
+  const rightText = `${t("collection")}  ${model.collection ?? 0} / ${model.collectionMax ?? 10000}`;
+
+  let sideSize = Math.max(12, 13 * s);
+  const sideGap = 10;
+  while (sideSize > 8) {
+    ctx.font = font(sideSize, "700");
+    if (ctx.measureText(leftText).width + sideGap + ctx.measureText(rightText).width <= innerW) break;
+    sideSize = Math.round((sideSize - 0.5) * 10) / 10;
+  }
+
+  const sideBaseline = capY + capH - padY - sideSize / 2;
+  const centerTop = capY + padY;
+  const centerBottom = sideBaseline - sideSize / 2 - 4;
+  const centerH = Math.max(10, centerBottom - centerTop);
+  const cx = plate.x + plate.w / 2;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+  ctx.shadowBlur = 3;
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = spec.cream;
+  ctx.font = font(sideSize, "700");
+  ctx.textAlign = "left";
+  ctx.fillText(leftText, innerL, sideBaseline);
+  ctx.textAlign = "right";
+  ctx.fillText(rightText, innerR, sideBaseline);
+
+  ctx.textAlign = "center";
+  if (selected) {
+    const entry = catalog[model.codexSelected];
+    const name = typeLabel(model.codexSelected);
+    const sub = t("catalogCuts", { n: entry.cuts, best: entry.best });
+    let nameSize = fitFontSize(ctx, name, innerW, Math.max(16, 18 * s), 11, "800");
+    let subSize = fitFontSize(ctx, sub, innerW, Math.max(11, 12 * s), 9, "600");
+    while (nameSize + 3 + subSize > centerH && (nameSize > 11 || subSize > 9)) {
+      if (nameSize > 11) nameSize = Math.round((nameSize - 0.5) * 10) / 10;
+      else subSize = Math.round((subSize - 0.5) * 10) / 10;
+    }
+    const block = nameSize + 3 + subSize;
+    const top = centerTop + Math.max(0, (centerH - block) / 2);
+    ctx.font = font(nameSize, "800");
+    ctx.fillText(name, cx, top + nameSize / 2);
+    ctx.globalAlpha = 0.88;
+    ctx.font = font(subSize, "600");
+    ctx.fillText(sub, cx, top + nameSize + 3 + subSize / 2);
+    ctx.globalAlpha = 1;
+  } else {
+    const hint = unlocked ? t("catalogPick") : t("catalogLocked");
+    let hintSize = fitFontSize(ctx, hint, innerW, Math.max(13, 14 * s), 10, "700");
+    hintSize = Math.min(hintSize, centerH);
+    ctx.font = font(hintSize, "700");
+    ctx.fillText(hint, cx, centerTop + centerH / 2);
+  }
+  ctx.restore();
+}
+
 function drawCodex(ctx, width, height, model) {
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
@@ -1505,38 +1672,7 @@ function drawCodex(ctx, width, height, model) {
   roundRect(ctx, pad, capY, width - pad - padR, capH, 14);
   ctx.stroke();
 
-  ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
-  ctx.shadowBlur = 3;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = spec.cream;
-  ctx.font = font(Math.max(12, 13 * s), "700");
-  ctx.fillText(`${unlocked} / ${total}`, pad + 12, capY + capH * 0.5);
-  ctx.textAlign = "right";
-  ctx.fillText(
-    ` ${t("collection")}  ${model.collection ?? 0} / ${model.collectionMax ?? 10000}`,
-    width - padR - 12,
-    capY + capH * 0.5,
-  );
-
-  ctx.textAlign = "center";
-  if (model.codexSelected && catalog[model.codexSelected]) {
-    const entry = catalog[model.codexSelected];
-    ctx.fillStyle = spec.cream;
-    ctx.font = font(Math.max(16, 18 * s), "800");
-    ctx.fillText(typeLabel(model.codexSelected), width / 2, capY + capH * 0.36);
-    ctx.font = font(Math.max(11, 12 * s), "600");
-    ctx.fillStyle = spec.cream;
-    ctx.globalAlpha = 0.88;
-    ctx.fillText(t("catalogCuts", { n: entry.cuts, best: entry.best }), width / 2, capY + capH * 0.72);
-    ctx.globalAlpha = 1;
-  } else {
-    ctx.fillStyle = spec.cream;
-    ctx.font = font(Math.max(13, 14 * s), "700");
-    ctx.fillText(unlocked ? t("catalogPick") : t("catalogLocked"), width / 2, capY + capH * 0.5);
-  }
-  ctx.restore();
+  drawCodexCaption(ctx, width, height, model, layout, catalog, unlocked, total);
 
   const trophy = model.stallTrophy;
   const trophyName = trophy ? (model.trophyLabel?.[trophy] || trophy) : t("trophyNone");
@@ -1733,21 +1869,105 @@ function drawTokenToast(ctx, width, height, model) {
   ctx.restore();
 }
 
-function drawHud(ctx, width, height, model) {
+/** 左上角分数面板的外框。关卡标题要躲开这块。 */
+export function scorePanelRect(width, height) {
   const s = uiScale(width, height);
-  const spec = CONFIG.ui;
   const p = layoutPad(width, height);
   const muteH = Math.max(36, 40 * s);
   const x = p.l;
   const y = p.t + muteH + Math.max(8, 10 * s);
-  const panelW = Math.max(132, 148 * s);
-  const panelH = Math.max(108, 118 * s);
+  return {
+    x: x - 8,
+    y: y - 8,
+    w: Math.max(132, 148 * s),
+    h: Math.max(108, 118 * s),
+  };
+}
+
+function themeTextBoxes(ctx, station, name, stationSize, nameSize, cx, yStation, yName) {
+  ctx.font = font(stationSize, "700");
+  const sw = ctx.measureText(station).width;
+  ctx.font = font(nameSize, "800");
+  const nw = ctx.measureText(name).width;
+  return [
+    { x: cx - sw / 2, y: yStation - stationSize / 2, w: sw, h: stationSize },
+    { x: cx - nw / 2, y: yName - nameSize / 2, w: nw, h: nameSize },
+  ];
+}
+
+/** 关卡名默认居中；若会压住分数面板，就挪到面板右侧并按空档缩字。 */
+function drawThemeFlash(ctx, width, height, model) {
+  const s = uiScale(width, height);
+  const station = t("station", { n: (model.themeIndex ?? 0) + 1 });
+  const name = model.themeName;
+  const panel = scorePanelRect(width, height);
+  const obstacles = [panel];
+  if (model.buttons?.restart) obstacles.push(model.buttons.restart);
+  if (model.buttons?.mute) obstacles.push(model.buttons.mute);
+  const hits = (stationSize, nameSize, cx, yStation, yName) =>
+    themeTextBoxes(ctx, station, name, stationSize, nameSize, cx, yStation, yName).some((box) =>
+      obstacles.some((obstacle) => rectsOverlap(box, obstacle, 4)),
+    );
+  const shrinkTo = (maxW, stationSize, nameSize) => ({
+    stationSize: fitFontSize(ctx, station, maxW, stationSize, 11, "700"),
+    nameSize: fitFontSize(ctx, name, maxW, nameSize, 13, "800"),
+  });
+
+  let stationSize = Math.max(13, 15 * s);
+  let nameSize = Math.max(24, 32 * s);
+  let cx = width / 2;
+  let yStation = height * 0.11;
+  let yName = height * 0.155;
+
+  if (hits(stationSize, nameSize, cx, yStation, yName)) {
+    const left = panel.x + panel.w + 12;
+    const avail = width - 12 - left;
+    if (avail >= 64) {
+      cx = left + avail / 2;
+      ({ stationSize, nameSize } = shrinkTo(avail, stationSize, nameSize));
+      yStation = panel.y + Math.min(panel.h * 0.38, 52);
+      yName = yStation + stationSize * 0.5 + nameSize * 0.55 + 6;
+      let guard = 0;
+      while (hits(stationSize, nameSize, cx, yStation, yName) && guard < 16) {
+        yStation += 4;
+        yName += 4;
+        guard += 1;
+      }
+    }
+    if (hits(stationSize, nameSize, cx, yStation, yName)) {
+      cx = width / 2;
+      ({ stationSize, nameSize } = shrinkTo(width - 24, stationSize, nameSize));
+      yStation = panel.y + panel.h + 10 + stationSize / 2;
+      yName = yStation + stationSize / 2 + 8 + nameSize / 2;
+    }
+  }
+
+  const age = model.themeFlashAge ?? 0;
+  const fade = age < 0.25 ? age / 0.25 : age > 1.35 ? Math.max(0, 1 - (age - 1.35) / 0.45) : 1;
+  ctx.save();
+  ctx.globalAlpha = 0.96 * fade;
+  ctx.fillStyle = CONFIG.ui.accent;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = font(stationSize, "700");
+  ctx.fillText(station, cx, yStation);
+  ctx.font = font(nameSize, "800");
+  ctx.fillText(name, cx, yName);
+  ctx.restore();
+}
+
+function drawHud(ctx, width, height, model) {
+  const s = uiScale(width, height);
+  const spec = CONFIG.ui;
+  const panel = scorePanelRect(width, height);
+  const x = panel.x + 8;
+  const y = panel.y + 8;
 
   ctx.save();
-  fillPlate(ctx, x - 8, y - 8, panelW, panelH, 14);
+  fillPlate(ctx, panel.x, panel.y, panel.w, panel.h, 14);
   ctx.strokeStyle = "rgba(243, 230, 208, 0.35)";
   ctx.lineWidth = 1.5;
-  roundRect(ctx, x - 8, y - 8, panelW, panelH, 14);
+  roundRect(ctx, panel.x, panel.y, panel.w, panel.h, 14);
   ctx.stroke();
   ctx.fillStyle = spec.cream;
   ctx.textAlign = "left";
@@ -2636,20 +2856,7 @@ export function renderUI(ctx, model) {
   }
 
   if (model.themeJustChanged && model.themeName) {
-    const s = uiScale(width, height);
-    const station = (model.themeIndex ?? 0) + 1;
-    const age = model.themeFlashAge ?? 0;
-    const fade = age < 0.25 ? age / 0.25 : age > 1.35 ? Math.max(0, 1 - (age - 1.35) / 0.45) : 1;
-    ctx.save();
-    ctx.globalAlpha = 0.96 * fade;
-    ctx.fillStyle = CONFIG.ui.accent;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = font(Math.max(13, 15 * s), "700");
-    ctx.fillText(t("station", { n: station }), width / 2, height * 0.11);
-    ctx.font = font(Math.max(24, 32 * s), "800");
-    ctx.fillText(model.themeName, width / 2, height * 0.155);
-    ctx.restore();
+    drawThemeFlash(ctx, width, height, model);
   }
 
   if (model.guideArmed && !model.summonPicker) {

@@ -1,4 +1,4 @@
-import { CONFIG } from "./config.js";
+import { CONFIG } from "./config.js?v=105";
 
 export const TROPHY_LABEL = {
   seen: "摊位章",

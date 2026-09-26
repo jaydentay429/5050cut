@@ -1,7 +1,7 @@
 /**
  * Web Audio 合成音效。浏览器 AudioContext 只放这一文件。
  */
-import { CONFIG } from "./config.js";
+import { CONFIG } from "./config.js?v=105";
 import { loadMuted, saveMuted } from "./storage.js";
 import { worldOf } from "./worlds.js?v=102";
 
