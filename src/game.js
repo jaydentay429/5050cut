@@ -1,10 +1,10 @@
 import { CONFIG } from "./config.js?v=105";
 import { haptic, isMuted, play, tickMusic, toggleMuted, unlockAudio, setFocusMuted } from "./audio.js?v=67";
 import { evaluateCut } from "./cut.js";
-import { ensureFruitModel, ensureWorldBackdrop, isModelReady, prefetchTheme, retainMenuModels, retainPlayModels, warmupModel } from "./fruitAssets.js?v=120";
-import { displayLength, pickObjectType, themeAt, themeIdForType, catalogTypes } from "./object.js?v=80";
+import { ensureFruitModel, ensureWorldBackdrop, isModelReady, prefetchTheme, retainMenuModels, retainPlayModels, warmupModel } from "./fruitAssets.js?v=121";
+import { displayLength, pickObjectType, themeAt, themeIdForType, catalogTypes } from "./object.js?v=81";
 import { dailyThemeId, getItem } from "./worlds.js?v=102";
-import { volumeSharePlane } from "./volume.js?v=78";
+import { volumeSharePlane } from "./volume.js?v=79";
 import {
   applyCut,
   comboTitle,
@@ -12,15 +12,15 @@ import {
   gradeFromScore,
   rankFromRun,
   scoreFromDeviation,
-} from "./score.js?v=4";
+} from "./score.js?v=5";
 import { collectionScore, hasGrandTrophy, stallStars, stallTrophy, unlockedStallIds } from "./progress.js";
-import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=146";
+import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=147";
 import { ACHIEVEMENTS, achievementSnapshot, pendingAchievements } from "./achievements.js?v=139";
 import { loadAchievements, loadCodex, loadEconomy, loadHighScore, saveAchievements, saveEconomy, saveHighScore, todayKey, unlockCodexEntry } from "./storage.js";
-import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=17";
+import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=18";
 import { adHooks, adsStatus, isAdBusy, isRewardPending, noteMeaningfulRun, notePlayTime } from "./ads.js?v=6";
-import { fetchBoard, isBoardOverlayOpen, loadBoardProfile, promptBoardName, promptBoardTitle, saveBoardProfile } from "./board.js?v=12";
-import { achieveTitle, getLang, setLang, t, themeName, typeLabel } from "./i18n.js?v=143";
+import { fetchBoard, isBoardOverlayOpen, loadBoardProfile, promptBoardName, promptBoardTitle, saveBoardProfile } from "./board.js?v=13";
+import { achieveTitle, getLang, setLang, t, themeName, typeLabel } from "./i18n.js?v=144";
 
 const MENU = "menu";
 const CODEX = "codex";

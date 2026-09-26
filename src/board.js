@@ -1,7 +1,7 @@
 /**
  * 排行榜客户端。国家由服务端 IP 判定。
  */
-import { applyDomLang, getLang, t } from "./i18n.js?v=143";
+import { applyDomLang, getLang, t } from "./i18n.js?v=144";
 import { applyImportedSave, cleanBoardName, collectSave, decodeSaveCode, encodeSaveCode } from "./saveTransfer.js?v=3";
 
 const NAMES = ["切客", "正中侠", "摊主", "半半", "果刀", "一刀准", "桌边人", "夜摊"];
@@ -123,7 +123,7 @@ async function copyPlainText(text, field, statusEl, okKey, manualKey) {
   }
 }
 
-function saveErrorText(error, rolledBack) {
+export function saveErrorText(error, rolledBack) {
   if (error === "write" && rolledBack === false) return t("saveErrWriteKeep");
   return t(SAVE_ERR[error] || "saveErrJson");
 }

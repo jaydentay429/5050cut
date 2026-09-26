@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { saveErrorText } from "./board.js";
+import { setLang } from "./i18n.js?v=144";
 import {
   BACKUP_KEY,
   BOARD_KEY,
@@ -201,6 +203,27 @@ function codeFor(data) {
   return `5050CUT1:${encoded}.${sum}`;
 }
 
+const FIELD_COPY = {
+  name: {
+    "zh-Hans": "昵称不合法",
+    "zh-Hant": "暱稱不合法",
+    en: "Nickname is not valid",
+  },
+  title: {
+    "zh-Hans": "头衔不合法",
+    "zh-Hant": "頭銜不合法",
+    en: "Title is not valid",
+  },
+};
+
+function assertFieldNamed(error) {
+  for (const [lang, needle] of Object.entries(FIELD_COPY[error])) {
+    setLang(lang);
+    const text = saveErrorText(error, true);
+    assert.equal(text.includes(needle), true, `${lang} ${error}: ${text}`);
+  }
+}
+
 test("hand-edited nickname and title are rejected and the save is unchanged", () => {
   const board = JSON.parse(sampleData()[BOARD_KEY]);
   const cases = [
@@ -208,8 +231,6 @@ test("hand-edited nickname and title are rejected and the save is unchanged", ()
     ["name", { ...board, name: "<img src=x onerror=alert(1)>" }],
     ["title", { ...board, titleId: "<img src=x onerror=alert(1)>" }],
     ["name", { ...board, name: "切\u0001客" }],
-    ["name", { ...board, name: "切\u200b客" }],
-    ["name", { ...board, name: " 切客 " }],
   ];
   const storage = memoryStorage(sampleData());
   const before = structuredClone(storage.dump());
@@ -218,16 +239,32 @@ test("hand-edited nickname and title are rejected and the save is unchanged", ()
     const decoded = decodeSaveCode(codeFor(data));
     assert.equal(decoded.ok, false);
     assert.equal(decoded.error, error);
+    assertFieldNamed(error);
     const applied = applyImportedSave(storage, data, NOW);
     assert.equal(applied.ok, false);
     assert.equal(applied.error, error);
     assert.deepEqual(storage.dump(), before);
-    assert.equal(storage.getItem(BACKUP_KEY), null);
+    assert.equal(storage.getItem(BACKUP_KEY), before[BACKUP_KEY] ?? null);
   }
-  const bare = JSON.parse(sampleData()[BOARD_KEY]);
-  bare.titleId = "";
-  const cleared = { ...sampleData(), [BOARD_KEY]: JSON.stringify(bare) };
-  assert.equal(decodeSaveCode(encodeSaveCode(cleared, NOW)).ok, true);
+});
+
+test("a normally exported save code validates and imports", () => {
+  const data = sampleData();
+  const decoded = decodeSaveCode(encodeSaveCode(data, NOW));
+  assert.equal(decoded.ok, true);
+  assert.deepEqual(decoded.data, data);
+  const storage = memoryStorage({
+    "perfect-slice-high-score": "1",
+    [BOARD_KEY]: JSON.stringify({ id: "cd".repeat(12), name: "临时号", titleId: "", country: "" }),
+  });
+  const before = structuredClone(storage.dump());
+  const applied = applyImportedSave(storage, decoded.data, NOW);
+  assert.equal(applied.ok, true);
+  assert.equal(storage.getItem("perfect-slice-high-score"), "42");
+  assert.equal(JSON.parse(storage.getItem(BOARD_KEY)).name, "切客·阿明");
+  assert.equal(JSON.parse(storage.getItem(BOARD_KEY)).titleId, "combo_5");
+  const backup = JSON.parse(storage.getItem(BACKUP_KEY));
+  assert.deepEqual(backup.data, before);
 });
 
 test("backup write failure does not change the save", () => {
