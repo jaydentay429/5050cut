@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { saveErrorText } from "./board.js";
-import { setLang } from "./i18n.js?v=144";
+import { setLang, t } from "./i18n.js?v=145";
 import {
   BACKUP_KEY,
   BOARD_KEY,
@@ -9,6 +9,7 @@ import {
   collectSave,
   decodeSaveCode,
   encodeSaveCode,
+  exportSaveFromData,
   fnv1a64Hex,
   withSaveBackup,
 } from "./saveTransfer.js";
@@ -245,6 +246,69 @@ test("hand-edited nickname and title are rejected and the save is unchanged", ()
     assert.equal(applied.error, error);
     assert.deepEqual(storage.dump(), before);
     assert.equal(storage.getItem(BACKUP_KEY), before[BACKUP_KEY] ?? null);
+  }
+});
+
+test("an old title is cleared only in the exported code and then imports", () => {
+  const data = sampleData();
+  const board = JSON.parse(data[BOARD_KEY]);
+  board.titleId = "retired_blade";
+  data[BOARD_KEY] = JSON.stringify(board);
+  const stored = data[BOARD_KEY];
+  const exported = exportSaveFromData(data, NOW);
+  assert.equal(exported.ok, true);
+  assert.equal(exported.titleCleared, true);
+  assert.equal(data[BOARD_KEY], stored);
+  for (const [lang, needle] of Object.entries({
+    "zh-Hans": "旧头衔已失效，已清空",
+    "zh-Hant": "舊頭銜已失效，已清空",
+    en: "no longer valid and was cleared",
+  })) {
+    setLang(lang);
+    assert.equal(t("saveExportTitleGone").includes(needle), true, t("saveExportTitleGone"));
+  }
+  const decoded = decodeSaveCode(exported.code);
+  assert.equal(decoded.ok, true);
+  assert.equal(JSON.parse(decoded.data[BOARD_KEY]).titleId, "");
+  assert.equal(JSON.parse(decoded.data[BOARD_KEY]).name, "切客·阿明");
+  const storage = memoryStorage({ "perfect-slice-high-score": "1" });
+  const applied = applyImportedSave(storage, decoded.data, NOW);
+  assert.equal(applied.ok, true);
+  assert.equal(JSON.parse(storage.getItem(BOARD_KEY)).titleId, "");
+  assert.equal(storage.getItem("perfect-slice-high-score"), "42");
+});
+
+test("old nicknames are blocked until the name is legal, then export and import", () => {
+  const badNames = ["刀", "一二三四五六七八九十一二三", "切客@"];
+  for (const name of badNames) {
+    const data = sampleData();
+    const board = JSON.parse(data[BOARD_KEY]);
+    board.name = name;
+    data[BOARD_KEY] = JSON.stringify(board);
+    const blocked = exportSaveFromData(data, NOW);
+    assert.equal(blocked.ok, false, name);
+    assert.equal(blocked.error, "name");
+    assert.equal(blocked.code, undefined);
+    assert.equal(data[BOARD_KEY].includes(name), true);
+    board.name = "切客·阿明";
+    data[BOARD_KEY] = JSON.stringify(board);
+    const exported = exportSaveFromData(data, NOW);
+    assert.equal(exported.ok, true);
+    assert.equal(exported.titleCleared, false);
+    const decoded = decodeSaveCode(exported.code);
+    assert.equal(decoded.ok, true);
+    const storage = memoryStorage({ "perfect-slice-high-score": "1" });
+    const applied = applyImportedSave(storage, decoded.data, NOW);
+    assert.equal(applied.ok, true);
+    assert.equal(JSON.parse(storage.getItem(BOARD_KEY)).name, "切客·阿明");
+  }
+  for (const [lang, needle] of Object.entries({
+    "zh-Hans": "请先改下面的昵称，再导出",
+    "zh-Hant": "請先改下面的暱稱，再匯出",
+    en: "Change the name below, then export",
+  })) {
+    setLang(lang);
+    assert.equal(t("saveExportRename").includes(needle), true, t("saveExportRename"));
   }
 });
 

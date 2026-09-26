@@ -1,8 +1,8 @@
 /**
  * 排行榜客户端。国家由服务端 IP 判定。
  */
-import { applyDomLang, getLang, t } from "./i18n.js?v=144";
-import { applyImportedSave, cleanBoardName, collectSave, decodeSaveCode, encodeSaveCode } from "./saveTransfer.js?v=3";
+import { applyDomLang, getLang, t } from "./i18n.js?v=145";
+import { applyImportedSave, cleanBoardName, collectSave, decodeSaveCode, exportSaveFromData } from "./saveTransfer.js?v=4";
 
 const NAMES = ["切客", "正中侠", "摊主", "半半", "果刀", "一刀准", "桌边人", "夜摊"];
 
@@ -143,6 +143,7 @@ export function promptBoardName(current) {
   const exportCopy = root?.querySelector("[data-export-copy]");
   const exportShare = root?.querySelector("[data-export-share]");
   const exportStatus = root?.querySelector("[data-export-status]");
+  const exportRename = root?.querySelector("[data-export-rename]");
   const importPanel = root?.querySelector("[data-import-panel]");
   const importText = root?.querySelector("[data-import-text]");
   const importGo = root?.querySelector("[data-import-go]");
@@ -186,21 +187,39 @@ export function promptBoardName(current) {
       event.stopPropagation();
       copyLeaderboardId(boardId, idEl, statusEl);
     };
+    const hideRenameGuide = () => {
+      if (!exportRename) return;
+      exportRename.hidden = true;
+      exportRename.textContent = "";
+    };
     const onExport = (event) => {
       event.preventDefault();
       event.stopPropagation();
       if (exportPanel) exportPanel.hidden = false;
+      hideRenameGuide();
       showLine(exportStatus, "", false);
-      try {
-        exportCode = encodeSaveCode(collectSave(localStorage));
-      } catch (err) {
+      const result = exportSaveFromData(collectSave(localStorage));
+      if (!result.ok) {
         exportCode = "";
         if (exportText) exportText.value = "";
-        showLine(exportStatus, t(err?.message === "boardId" ? "saveErrBoard" : "saveErrJson"), true);
+        if (result.error === "name") {
+          const message = t("saveExportRename");
+          showLine(exportStatus, message, true);
+          if (exportRename) {
+            exportRename.hidden = false;
+            exportRename.textContent = message;
+          }
+          input.focus();
+          (exportRename || input).scrollIntoView({ block: "nearest" });
+          return;
+        }
+        showLine(exportStatus, saveErrorText(result.error, true), true);
         return;
       }
+      exportCode = result.code;
       if (exportText) exportText.value = exportCode;
       if (exportShare) exportShare.hidden = typeof navigator.share !== "function";
+      showLine(exportStatus, result.titleCleared ? t("saveExportTitleGone") : "", false);
       exportPanel?.scrollIntoView({ block: "nearest" });
     };
     const onExportCopy = (event) => {

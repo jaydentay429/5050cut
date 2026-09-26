@@ -60,7 +60,7 @@ function harnessHtml() {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>save transfer harness</title>
-    <link rel="stylesheet" href="/style.css?v=12" />
+    <link rel="stylesheet" href="/style.css?v=13" />
   </head>
   <body>
     <main id="about">
@@ -84,7 +84,7 @@ function harnessHtml() {
       });
     </script>
     <script type="module">
-      import { promptBoardName } from "/src/board.js?v=13";
+      import { promptBoardName } from "/src/board.js?v=14";
       const scene = document.getElementById("scene");
       scene.width = window.innerWidth;
       scene.height = window.innerHeight;
@@ -164,7 +164,7 @@ async function layoutProblems(page) {
     if (doc.scrollWidth > doc.clientWidth + 1) problems.push(`page overflow ${doc.scrollWidth}>${doc.clientWidth}`);
     if (card.scrollWidth > card.clientWidth + 1) problems.push(`card overflow ${card.scrollWidth}>${card.clientWidth}`);
     const cardBox = card.getBoundingClientRect();
-    const nodes = [...card.querySelectorAll("button, input, textarea, .board-id, .board-key-warn, .board-name-label")].filter((el) => {
+    const nodes = [...card.querySelectorAll("button, input, textarea, .board-id, .board-key-warn, .board-name-label, .board-id-status, .ad-consent-body")].filter((el) => {
       if (el.closest("[hidden]")) return false;
       const style = getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden") return false;
@@ -326,6 +326,58 @@ async function assertAboutCovered(page) {
     if (!(b > 100 && r < 40 && b > r + 60)) bad.push(`${x},${y} rgb(${r},${g},${b})`);
   }
   if (bad.length) throw new Error(`#about shows through the dialog: ${bad.join("; ")}`);
+}
+
+async function exportNotice(browser, origin, width, lang, patch, needle, file, kind) {
+  const context = await browser.newContext({
+    viewport: { width, height: 800 },
+    locale: lang === "en" ? "en-US" : lang === "zh-Hant" ? "zh-TW" : "zh-CN",
+  });
+  await context.addInitScript((initial) => {
+    for (const [key, value] of Object.entries(initial)) localStorage.setItem(key, value);
+  }, { ...seed, "perfect-slice-lang": lang });
+  const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  await page.route("**/api/board**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ country: "TW", scope: "global", rows: [], me: null }),
+  }));
+  await page.goto(`${origin}/harness.html`, { waitUntil: "domcontentloaded", timeout: 8000 });
+  await openDialog(page);
+  await page.evaluate((next) => {
+    const board = JSON.parse(localStorage.getItem("perfect-slice-board"));
+    if (next.name != null) board.name = next.name;
+    if (next.titleId != null) board.titleId = next.titleId;
+    localStorage.setItem("perfect-slice-board", JSON.stringify(board));
+  }, patch);
+  await page.click("[data-save-export]");
+  await page.waitForFunction((text) => (document.body.innerText || "").includes(text), needle);
+  const layout = await layoutProblems(page);
+  if (layout.length) throw new Error(layout.join("\n"));
+  if (kind === "title") {
+    const code = await page.locator("[data-export-text]").inputValue();
+    const decoded = decodeSaveCode(code);
+    if (!decoded.ok) throw new Error(`cleared title did not export ${decoded.error}`);
+    if (JSON.parse(decoded.data["perfect-slice-board"]).titleId !== "") throw new Error("exported title was not cleared");
+    const still = await page.evaluate(() => JSON.parse(localStorage.getItem("perfect-slice-board")).titleId);
+    if (still !== patch.titleId) throw new Error("local title was changed");
+    await page.locator("[data-export-status]").scrollIntoViewIfNeeded();
+  } else {
+    const code = await page.locator("[data-export-text]").inputValue();
+    if (code) throw new Error("blocked export still produced a code");
+    const focused = await page.evaluate(() => document.activeElement?.id || "");
+    if (focused !== "board-name-input") throw new Error(`rename field not focused: ${focused}`);
+    await page.evaluate(() => {
+      const note = document.querySelector("[data-export-rename]");
+      const card = document.querySelector("#board-name .ad-consent-card");
+      const delta = note.getBoundingClientRect().top - card.getBoundingClientRect().top;
+      card.scrollTop += delta - 8;
+    });
+  }
+  await page.screenshot({ path: path.join(shotDir, file) });
+  await context.close();
+  console.log(`export ${kind} ${lang} ${width}px`);
 }
 
 async function confirmLanguage(browser, origin, width, lang, needle) {
@@ -545,6 +597,14 @@ try {
   for (const width of [360, 390]) {
     await confirmLanguage(browser, origin, width, "zh-Hant", "原來那一行排行榜記錄會留在榜上");
     await confirmLanguage(browser, origin, width, "en", "can no longer be changed");
+    for (const [lang, titleNeedle, nameNeedle] of [
+      ["zh-Hans", "旧头衔已失效，已清空", "请先改下面的昵称，再导出"],
+      ["zh-Hant", "舊頭銜已失效，已清空", "請先改下面的暱稱，再匯出"],
+      ["en", "no longer valid and was cleared", "Change the name below, then export"],
+    ]) {
+      await exportNotice(browser, origin, width, lang, { titleId: "retired_blade" }, titleNeedle, `save-export-title-${lang}-${width}.png`, "title");
+      await exportNotice(browser, origin, width, lang, { name: "刀" }, nameNeedle, `save-export-name-${lang}-${width}.png`, "name");
+    }
   }
 } catch (err) {
   failed = true;

@@ -125,6 +125,17 @@ export function encodeSaveCode(data, now = new Date()) {
   return `${CODE_PREFIX}${b64}.${sum}`;
 }
 
+export function exportSaveFromData(data, now = new Date()) {
+  const check = validateSaveData(data);
+  if (check.ok) return { ok: true, code: encodeSaveCode(data, now), titleCleared: false };
+  if (check.error !== "title") return { ok: false, error: check.error };
+  const board = JSON.parse(data[BOARD_KEY]);
+  const cleared = { ...data, [BOARD_KEY]: JSON.stringify({ ...board, titleId: "" }) };
+  const again = validateSaveData(cleared);
+  if (!again.ok) return { ok: false, error: again.error };
+  return { ok: true, code: encodeSaveCode(cleared, now), titleCleared: true };
+}
+
 export function decodeSaveCode(raw) {
   const text = String(raw ?? "").replace(/\s+/g, "");
   if (!text) return { ok: false, error: "empty" };

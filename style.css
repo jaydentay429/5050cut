@@ -317,6 +317,7 @@ body.overlay-open #game {
   font-weight: 700;
   line-height: 1.4;
   color: #e07a3d;
+  overflow-wrap: anywhere;
 }
 
 .board-id-status[hidden] {
