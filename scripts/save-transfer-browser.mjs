@@ -66,6 +66,12 @@ function harnessHtml() {
   </head>
   <body>
     ${block}
+    <script>
+      window.__errors = [];
+      window.addEventListener("error", (event) => {
+        window.__errors.push(String(event.message || event));
+      });
+    </script>
     <script type="module">
       import { promptBoardName } from "/src/board.js?v=10";
       window.__openName = () => promptBoardName("本地新名字");
@@ -114,10 +120,23 @@ async function dumpStorage(page) {
 }
 
 async function openDialog(page) {
-  await page.waitForFunction(() => document.documentElement.dataset.ready === "1");
-  await page.evaluate(() => window.__openName());
-  await page.waitForSelector("#board-name:not([hidden])");
-  await page.waitForFunction(() => (document.querySelector("[data-board-id]")?.textContent || "").length === 24);
+  const ready = await Promise.race([
+    page.waitForFunction(() => document.documentElement.dataset.ready === "1").then(() => "ready"),
+    new Promise((resolve) => setTimeout(() => resolve("timeout"), 8000)),
+  ]);
+  if (ready !== "ready") {
+    const info = await page.evaluate(() => ({
+      ready: document.documentElement.dataset.ready || "",
+      html: document.body ? document.body.innerHTML.slice(0, 500) : "",
+      errors: window.__errors || [],
+    })).catch((err) => ({ evalError: String(err) }));
+    throw new Error(`dialog not ready ${JSON.stringify(info)}`);
+  }
+  await page.evaluate(() => {
+    void window.__openName();
+  });
+  await page.waitForSelector("#board-name:not([hidden])", { timeout: 8000 });
+  await page.waitForFunction(() => (document.querySelector("[data-board-id]")?.textContent || "").length === 24, { timeout: 8000 });
 }
 
 async function layoutProblems(page) {
@@ -202,6 +221,8 @@ async function runWidth(browser, origin, width) {
     }
   }, seed);
   const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  page.setDefaultNavigationTimeout(8000);
   const bad = [];
   let boardGets = 0;
   page.on("request", (req) => {
@@ -226,7 +247,7 @@ async function runWidth(browser, origin, width) {
       body: JSON.stringify({ country: "TW", scope: "global", rows: [], me }),
     });
   });
-  await page.goto(`${origin}/harness.html`, { waitUntil: "networkidle" });
+  await page.goto(`${origin}/harness.html`, { waitUntil: "domcontentloaded", timeout: 8000 });
   await openDialog(page);
   await page.click("[data-save-export]");
   await page.waitForFunction(() => (document.querySelector("[data-export-text]")?.value || "").startsWith("5050CUT1:"));
@@ -293,7 +314,7 @@ async function runWidth(browser, origin, width) {
   const confirmLayout = await layoutProblems(page);
   if (confirmLayout.length) throw new Error(confirmLayout.join("\n"));
   await Promise.all([
-    page.waitForNavigation({ waitUntil: "networkidle" }),
+    page.waitForNavigation({ waitUntil: "domcontentloaded" }),
     page.click("[data-import-yes]"),
   ]);
   await page.waitForFunction(() => document.documentElement.dataset.ready === "1");
@@ -336,7 +357,7 @@ async function runWidth(browser, origin, width) {
   if (foundLayout.length) throw new Error(foundLayout.join("\n"));
   await assertClickable(page);
   await Promise.all([
-    page.waitForNavigation({ waitUntil: "networkidle" }),
+    page.waitForNavigation({ waitUntil: "domcontentloaded" }),
     page.click("[data-restore-yes]"),
   ]);
   await page.waitForFunction(() => document.documentElement.dataset.ready === "1");
@@ -355,7 +376,32 @@ async function runWidth(browser, origin, width) {
   console.log(`ok ${width}px boardGets=${boardGets}`);
 }
 
-const playwright = await import("playwright");
+async function loadPlaywright() {
+  try {
+    return await import("playwright");
+  } catch {
+    /* resolved below when playwright is not a project dependency */
+  }
+  const { pathToFileURL } = await import("node:url");
+  const roots = ["/home/ubuntu/.npm/_npx", "/usr/lib/node_modules", "/lib/node_modules"].filter((dir) => fs.existsSync(dir));
+  for (const base of roots) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(base);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const file = path.join(base, entry, "node_modules/playwright/index.mjs");
+      const direct = path.join(base, "playwright/index.mjs");
+      if (fs.existsSync(file)) return import(pathToFileURL(file).href);
+      if (fs.existsSync(direct)) return import(pathToFileURL(direct).href);
+    }
+  }
+  throw new Error("playwright is not installed");
+}
+
+const playwright = await loadPlaywright();
 const server = await startServer();
 const { port } = server.address();
 const origin = `http://127.0.0.1:${port}`;
@@ -364,11 +410,17 @@ const browser = await playwright.chromium.launch({
   headless: true,
   args: ["--no-sandbox", "--disable-dev-shm-usage"],
 });
+let failed = false;
 try {
   await runWidth(browser, origin, 360);
   await runWidth(browser, origin, 390);
+} catch (err) {
+  failed = true;
+  console.error(err);
 } finally {
-  await browser.close();
-  await new Promise((resolve) => server.close(resolve));
+  await Promise.race([browser.close().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 3000))]);
+  server.close();
 }
+if (failed) process.exit(1);
 console.log("browser checks passed");
+process.exit(0);
