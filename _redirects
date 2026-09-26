@@ -1,1 +1,2 @@
+# Unknown paths must 404 via /404.html. Do not add `/* /index.html 200`.
 /favicon.ico /favicon.svg 200

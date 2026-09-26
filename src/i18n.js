@@ -774,9 +774,9 @@ export function htmlLang() {
 
 export function applyDomLang() {
   try {
-    document.documentElement.lang = htmlLang();
+    // In-game copy follows `lang`. The document title and <html lang> stay
+    // as served so crawlers see one stable page.
     document.documentElement.dataset.lang = lang;
-    document.title = t("title");
     const bootTitle = document.getElementById("boot-load-title");
     if (bootTitle) bootTitle.textContent = t("title");
     const bootText = document.getElementById("boot-load-text");
