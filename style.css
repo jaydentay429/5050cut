@@ -347,3 +347,30 @@ body.overlay-open #game {
 .board-title-list button.on {
   box-shadow: inset 0 0 0 2px #f3e6d0;
 }
+
+#privacy-link {
+  position: fixed;
+  z-index: 4;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  padding: 8px 4px;
+  color: rgba(243, 230, 208, 0.72);
+  font-size: 12px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  text-shadow: 0 1px 2px rgba(16, 12, 9, 0.85);
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#privacy-link:hover,
+#privacy-link:focus-visible {
+  color: #f3e6d0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#privacy-link[hidden] {
+  display: none !important;
+}

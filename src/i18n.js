@@ -25,6 +25,7 @@ const UI = {
     langAsk: "简体还是繁体？",
     langHans: "简体",
     langHant: "繁体",
+    privacy: "隐私",
     highScore: "历史最高",
     collection: "收藏分",
     grandTrophy: "刀神奖杯",
@@ -192,6 +193,7 @@ const UI = {
     langAsk: "簡體還是繁體？",
     langHans: "簡體",
     langHant: "繁體",
+    privacy: "隱私",
     highScore: "歷史最高",
     collection: "收藏分",
     grandTrophy: "刀神獎盃",
@@ -359,6 +361,7 @@ const UI = {
     langAsk: "Simplified or Traditional?",
     langHans: "简体",
     langHant: "繁體",
+    privacy: "Privacy",
     highScore: "Best",
     collection: "Album",
     grandTrophy: "Blade Master",
@@ -809,6 +812,7 @@ export function applyDomLang() {
       ["[data-i18n='titleEmpty']", "titleEmpty"],
       ["[data-i18n='titleNone']", "titleNone"],
       ["[data-i18n='cancel']", "cancel"],
+      ["[data-i18n='privacy']", "privacy"],
     ];
     for (const [sel, key] of map) {
       document.querySelectorAll(sel).forEach((el) => {

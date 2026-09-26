@@ -2,13 +2,20 @@
  * 入口：创建 Canvas / WebGL、处理窗口尺寸、驱动游戏循环。
  * 浏览器专属 API（window / document / canvas）集中在这一文件、input.js 和 audio.js。
  */
-import { Game } from "./game.js?v=142";
+import { Game } from "./game.js?v=143";
 import { attachInput } from "./input.js?v=80";
-import { catalogTypes } from "./object.js?v=77";
-import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=117";
-import { createScene } from "./scene.js?v=98";
+import { catalogTypes } from "./object.js?v=78";
+import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=118";
+import { createScene } from "./scene.js?v=99";
 import { CONFIG } from "./config.js?v=110";
-import { t } from "./i18n.js?v=140";
+import { t } from "./i18n.js?v=141";
+
+function syncPrivacyLink(state) {
+  const link = document.getElementById("privacy-link");
+  if (!link) return;
+  const hide = state !== "menu";
+  if (link.hidden !== hide) link.hidden = hide;
+}
 
 const sceneCanvas = document.getElementById("scene");
 const uiCanvas = document.getElementById("game");
@@ -65,6 +72,7 @@ async function boot() {
     lastTime = time;
 
     game.update(dt);
+    syncPrivacyLink(game.state);
     scene.render();
     game.render(ctx);
     if (uiCanvas.style.cursor !== game.cursor) uiCanvas.style.cursor = game.cursor;
@@ -105,6 +113,7 @@ async function boot() {
       }
     }
   }
+  syncPrivacyLink(game.state);
   hideLoad();
   prefetchTheme("fruit");
   if (window.__FORCE_LIVE_ADS__) {
