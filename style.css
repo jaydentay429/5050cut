@@ -323,6 +323,105 @@ body.overlay-open #game {
   display: none;
 }
 
+.board-id-status.is-error {
+  color: #ffb4a4;
+}
+
+#board-name .ad-consent-card {
+  max-height: min(92vh, 920px);
+  max-height: min(92dvh, 920px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#board-name [hidden] {
+  display: none !important;
+}
+
+.board-key-warn {
+  color: #ffb4a4;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.board-id-actions,
+.board-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+#board-name .board-id-actions button,
+#board-name .board-inline-actions button {
+  width: auto;
+  flex: 1 1 calc(50% - 8px);
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin-top: 0;
+  padding: 8px 10px;
+  font-size: 14px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.board-transfer,
+.board-restore {
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.board-transfer-text,
+#board-restore-input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid rgba(243, 230, 208, 0.35);
+  background: rgba(12, 9, 7, 0.45);
+  color: #f3e6d0;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 10px 12px;
+  outline: none;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.board-transfer-text {
+  min-height: 96px;
+  max-height: 160px;
+  resize: none;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+#board-restore-input {
+  min-height: 44px;
+}
+
+.board-transfer-text:focus,
+#board-restore-input:focus {
+  border-color: #e07a3d;
+}
+
+.board-restore-confirm {
+  min-width: 0;
+}
+
 .board-title-card {
   max-height: min(86vh, 640px);
   overflow: hidden;

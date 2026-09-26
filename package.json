@@ -9,7 +9,8 @@
     "pack-pages": "node scripts/pack-pages.mjs",
     "deploy:pages": "node scripts/pack-pages.mjs && wrangler pages deploy dist --project-name precise-cut",
     "deploy:r2": "node scripts/upload-r2.mjs",
-    "preview": "python3 -m http.server 8765"
+    "preview": "python3 -m http.server 8765",
+    "test": "node --test src/saveTransfer.test.js"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.0",

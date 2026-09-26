@@ -14,7 +14,7 @@ import {
   scoreFromDeviation,
 } from "./score.js?v=2";
 import { collectionScore, hasGrandTrophy, stallStars, stallTrophy, unlockedStallIds } from "./progress.js";
-import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=144";
+import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=143";
 import { ACHIEVEMENTS, achievementSnapshot, pendingAchievements } from "./achievements.js?v=139";
 import { loadAchievements, loadCodex, loadEconomy, loadHighScore, saveAchievements, saveEconomy, saveHighScore, todayKey, unlockCodexEntry } from "./storage.js";
 import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=15";
@@ -107,8 +107,9 @@ export class Game {
     this.boardLoading = false;
     this.boardError = "";
     this.boardProfile = loadBoardProfile();
-    if (this.boardProfile.titleId && !this.achieve.unlocked[this.boardProfile.titleId]) {
-      this.boardProfile = { ...this.boardProfile, titleId: "" };
+    // 从排行榜找回的头衔带 serverTitle。本地成就没解锁时也不清掉，避免下次提交把旧头衔抹掉。
+    if (this.boardProfile.titleId && !this.achieve.unlocked[this.boardProfile.titleId] && !this.boardProfile.serverTitle) {
+      this.boardProfile = { ...this.boardProfile, titleId: "", serverTitle: false };
       saveBoardProfile(this.boardProfile);
     }
     this.revokeUnearnedScoreUnlocks();
@@ -154,7 +155,7 @@ export class Game {
     this.persistEconomy();
     this.persistAchieve();
     if (this.boardProfile.titleId && !this.achieve.unlocked[this.boardProfile.titleId]) {
-      this.boardProfile = { ...this.boardProfile, titleId: "" };
+      this.boardProfile = { ...this.boardProfile, titleId: "", serverTitle: false };
       saveBoardProfile(this.boardProfile);
     }
   }
@@ -722,7 +723,7 @@ export class Game {
       if (next) this.tokenToast = { amount: 0, reason: t("titleOn", { name: achieveTitle(next) }), at: this.time };
       return;
     }
-    this.boardProfile = { ...this.boardProfile, titleId: next };
+    this.boardProfile = { ...this.boardProfile, titleId: next, serverTitle: false };
     saveBoardProfile(this.boardProfile);
     play("button");
     this.tokenToast = {

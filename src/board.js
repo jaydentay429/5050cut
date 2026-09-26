@@ -1,7 +1,17 @@
 /**
  * 排行榜客户端。国家由服务端 IP 判定。
  */
-import { applyDomLang, getLang, t } from "./i18n.js?v=141";
+import { applyDomLang, getLang, t, titleIdFromStored } from "./i18n.js?v=141";
+import {
+  applyImportedSave,
+  applyRestoredBoard,
+  collectSave,
+  decodeSaveCode,
+  encodeSaveCode,
+  isLeaderboardId,
+  normalizeLeaderboardId,
+  restoredBoardProfile,
+} from "./saveTransfer.js?v=1";
 
 const NAMES = ["切客", "正中侠", "摊主", "半半", "果刀", "一刀准", "桌边人", "夜摊"];
 
@@ -20,13 +30,14 @@ export function loadBoardProfile() {
         name: String(raw.name || "").slice(0, 12) || defaultName(raw.id),
         titleId: String(raw.titleId || ""),
         country: String(raw.country || ""),
+        serverTitle: raw.serverTitle === true,
       };
     }
   } catch {
     /* ignore */
   }
   const id = randomId();
-  const profile = { id, name: defaultName(id), titleId: "", country: "" };
+  const profile = { id, name: defaultName(id), titleId: "", country: "", serverTitle: false };
   saveBoardProfile(profile);
   return profile;
 }
@@ -88,18 +99,87 @@ async function copyLeaderboardId(id, idEl, statusEl) {
   }
 }
 
+const SAVE_ERR = {
+  empty: "saveErrEmpty",
+  prefix: "saveErrPrefix",
+  checksum: "saveErrChecksum",
+  version: "saveErrVersion",
+  json: "saveErrJson",
+  shape: "saveErrJson",
+  key: "saveErrKey",
+  type: "saveErrType",
+  jsonValue: "saveErrType",
+  boardId: "saveErrBoard",
+  write: "saveErrWrite",
+};
+
+function showLine(el, message, isError = false) {
+  if (!el) return;
+  el.hidden = !message;
+  el.textContent = message || "";
+  el.classList.toggle("is-error", Boolean(message) && isError);
+}
+
+async function copyPlainText(text, field, statusEl, okKey, manualKey) {
+  try {
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+      throw new Error("no-clipboard");
+    }
+    await navigator.clipboard.writeText(text);
+    showLine(statusEl, t(okKey), false);
+  } catch {
+    if (field && typeof field.select === "function") {
+      field.focus();
+      field.select();
+    } else {
+      selectElementText(field);
+    }
+    showLine(statusEl, t(manualKey), true);
+  }
+}
+
+function saveErrorText(error, rolledBack) {
+  if (error === "write" && rolledBack === false) return t("saveErrWriteKeep");
+  return t(SAVE_ERR[error] || "saveErrJson");
+}
+
 export function promptBoardName(current) {
   const root = document.getElementById("board-name");
-  const input = root?.querySelector("input");
+  const input = root?.querySelector("#board-name-input");
   const hint = root?.querySelector("[data-name-hint]");
   const form = root?.querySelector("[data-name-form]");
   const idEl = root?.querySelector("[data-board-id]");
   const copyBtn = root?.querySelector("[data-id-copy]");
   const statusEl = root?.querySelector("[data-id-status]");
+  const exportBtn = root?.querySelector("[data-save-export]");
+  const importBtn = root?.querySelector("[data-save-import]");
+  const exportPanel = root?.querySelector("[data-export-panel]");
+  const exportText = root?.querySelector("[data-export-text]");
+  const exportCopy = root?.querySelector("[data-export-copy]");
+  const exportShare = root?.querySelector("[data-export-share]");
+  const exportStatus = root?.querySelector("[data-export-status]");
+  const importPanel = root?.querySelector("[data-import-panel]");
+  const importText = root?.querySelector("[data-import-text]");
+  const importGo = root?.querySelector("[data-import-go]");
+  const importError = root?.querySelector("[data-import-error]");
+  const importConfirm = root?.querySelector("[data-import-confirm]");
+  const importYes = root?.querySelector("[data-import-yes]");
+  const importNo = root?.querySelector("[data-import-no]");
+  const restoreInput = root?.querySelector("[data-restore-id]");
+  const restoreGo = root?.querySelector("[data-restore-go]");
+  const restoreConfirm = root?.querySelector("[data-restore-confirm]");
+  const restoreFound = root?.querySelector("[data-restore-found]");
+  const restoreYes = root?.querySelector("[data-restore-yes]");
+  const restoreNo = root?.querySelector("[data-restore-no]");
+  const restoreStatus = root?.querySelector("[data-restore-status]");
   if (!root || !input) return Promise.resolve(null);
   if (!root.hidden) return Promise.resolve(null);
 
   const boardId = loadBoardProfile().id;
+  let exportCode = "";
+  let pendingImport = null;
+  let pendingProfile = null;
+  let restoreBusy = false;
 
   return new Promise((resolve) => {
     let done = false;
@@ -113,6 +193,19 @@ export function promptBoardName(current) {
       root.removeEventListener("click", onBackdrop);
       form?.removeEventListener("submit", onSubmit);
       copyBtn?.removeEventListener("click", onCopy);
+      exportBtn?.removeEventListener("click", onExport);
+      importBtn?.removeEventListener("click", onImportOpen);
+      exportCopy?.removeEventListener("click", onExportCopy);
+      exportShare?.removeEventListener("click", onExportShare);
+      importGo?.removeEventListener("click", onImportCheck);
+      importYes?.removeEventListener("click", onImportYes);
+      importNo?.removeEventListener("click", onImportNo);
+      importText?.removeEventListener("input", onImportEdit);
+      restoreGo?.removeEventListener("click", onRestoreGo);
+      restoreYes?.removeEventListener("click", onRestoreYes);
+      restoreNo?.removeEventListener("click", onRestoreNo);
+      restoreInput?.removeEventListener("input", onRestoreEdit);
+      restoreInput?.removeEventListener("keydown", onRestoreKey);
       cancel?.removeEventListener("click", onCancel);
       input.removeEventListener("keydown", onKey);
       resolve(value);
@@ -121,6 +214,168 @@ export function promptBoardName(current) {
       event.preventDefault();
       event.stopPropagation();
       copyLeaderboardId(boardId, idEl, statusEl);
+    };
+    const onExport = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (exportPanel) exportPanel.hidden = false;
+      showLine(exportStatus, "", false);
+      try {
+        exportCode = encodeSaveCode(collectSave(localStorage));
+      } catch (err) {
+        exportCode = "";
+        if (exportText) exportText.value = "";
+        showLine(exportStatus, t(err?.message === "boardId" ? "saveErrBoard" : "saveErrJson"), true);
+        return;
+      }
+      if (exportText) exportText.value = exportCode;
+      if (exportShare) exportShare.hidden = typeof navigator.share !== "function";
+      exportPanel?.scrollIntoView({ block: "nearest" });
+    };
+    const onExportCopy = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!exportCode) return;
+      copyPlainText(exportCode, exportText, exportStatus, "saveCopied", "saveCopyManual");
+    };
+    const onExportShare = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!exportCode || typeof navigator.share !== "function") return;
+      navigator.share({ text: exportCode }).catch((err) => {
+        if (err && err.name === "AbortError") return;
+        copyPlainText(exportCode, exportText, exportStatus, "saveCopied", "saveCopyManual");
+      });
+    };
+    const onImportOpen = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (importPanel) importPanel.hidden = false;
+      pendingImport = null;
+      if (importConfirm) importConfirm.hidden = true;
+      showLine(importError, "", false);
+      importPanel?.scrollIntoView({ block: "nearest" });
+      importText?.focus();
+    };
+    const onImportEdit = () => {
+      pendingImport = null;
+      if (importConfirm) importConfirm.hidden = true;
+    };
+    const onImportCheck = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const decoded = decodeSaveCode(importText?.value || "");
+      if (!decoded.ok) {
+        pendingImport = null;
+        if (importConfirm) importConfirm.hidden = true;
+        showLine(importError, saveErrorText(decoded.error, true), true);
+        return;
+      }
+      pendingImport = decoded.data;
+      if (importConfirm) importConfirm.hidden = false;
+      showLine(importError, "", false);
+      importConfirm?.scrollIntoView({ block: "nearest" });
+    };
+    const onImportNo = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      pendingImport = null;
+      if (importConfirm) importConfirm.hidden = true;
+    };
+    const onImportYes = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!pendingImport) return;
+      const result = applyImportedSave(localStorage, pendingImport);
+      if (!result.ok) {
+        showLine(importError, saveErrorText(result.error, result.rolledBack), true);
+        return;
+      }
+      window.location.reload();
+    };
+    const onRestoreEdit = () => {
+      if (!restoreInput) return;
+      const next = normalizeLeaderboardId(restoreInput.value);
+      if (restoreInput.value !== next) {
+        const caret = restoreInput.selectionStart || 0;
+        restoreInput.value = next;
+        const pos = Math.min(caret, next.length);
+        restoreInput.setSelectionRange(pos, pos);
+      }
+      pendingProfile = null;
+      if (restoreConfirm) restoreConfirm.hidden = true;
+    };
+    const onRestoreGo = async (event) => {
+      event?.preventDefault();
+      event?.stopPropagation();
+      if (restoreBusy) return;
+      onRestoreEdit();
+      const id = normalizeLeaderboardId(restoreInput?.value || "");
+      if (!isLeaderboardId(id)) {
+        pendingProfile = null;
+        if (restoreConfirm) restoreConfirm.hidden = true;
+        showLine(restoreStatus, t("restoreBad"), true);
+        return;
+      }
+      restoreBusy = true;
+      showLine(restoreStatus, t("boardLoad"), false);
+      try {
+        const data = await fetchBoard("global", id);
+        if (!data?.me) {
+          pendingProfile = null;
+          if (restoreConfirm) restoreConfirm.hidden = true;
+          showLine(restoreStatus, t("restoreMiss"), true);
+          return;
+        }
+        const titleId = data.me.title ? titleIdFromStored(data.me.title) : "";
+        const built = restoredBoardProfile(loadBoardProfile(), id, data.me, titleId);
+        if (!built.ok) {
+          pendingProfile = null;
+          if (restoreConfirm) restoreConfirm.hidden = true;
+          const key = {
+            noName: "restoreNoName",
+            noTitle: "restoreNoTitle",
+            badTitle: "restoreBadTitle",
+            badId: "restoreBad",
+          }[built.error];
+          showLine(restoreStatus, t(key || "restoreMiss"), true);
+          return;
+        }
+        pendingProfile = built.profile;
+        if (restoreFound) restoreFound.textContent = t("restoreFound", { name: built.profile.name });
+        if (restoreConfirm) restoreConfirm.hidden = false;
+        showLine(restoreStatus, "", false);
+        restoreConfirm?.scrollIntoView({ block: "nearest" });
+      } catch {
+        pendingProfile = null;
+        if (restoreConfirm) restoreConfirm.hidden = true;
+        showLine(restoreStatus, t("restoreOffline"), true);
+      } finally {
+        restoreBusy = false;
+      }
+    };
+    const onRestoreYes = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!pendingProfile) return;
+      const result = applyRestoredBoard(localStorage, pendingProfile);
+      if (!result.ok) {
+        showLine(restoreStatus, t(result.rolledBack === false ? "restoreWriteKeep" : "restoreWrite"), true);
+        return;
+      }
+      window.location.reload();
+    };
+    const onRestoreNo = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      pendingProfile = null;
+      if (restoreConfirm) restoreConfirm.hidden = true;
+    };
+    const onRestoreKey = (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      event.stopPropagation();
+      onRestoreGo();
     };
     const onGuard = (event) => event.stopPropagation();
     const onBackdrop = (event) => {
@@ -163,13 +418,38 @@ export function promptBoardName(current) {
     if (statusEl) {
       statusEl.hidden = true;
       statusEl.textContent = "";
+      statusEl.classList.remove("is-error");
     }
+    if (exportPanel) exportPanel.hidden = true;
+    if (exportText) exportText.value = "";
+    if (exportShare) exportShare.hidden = true;
+    showLine(exportStatus, "", false);
+    if (importPanel) importPanel.hidden = true;
+    if (importText) importText.value = "";
+    if (importConfirm) importConfirm.hidden = true;
+    showLine(importError, "", false);
+    if (restoreInput) restoreInput.value = "";
+    if (restoreConfirm) restoreConfirm.hidden = true;
+    showLine(restoreStatus, "", false);
     input.value = current || "";
     root.hidden = false;
     root.addEventListener("pointerdown", onGuard, true);
     root.addEventListener("click", onBackdrop);
     form?.addEventListener("submit", onSubmit);
     copyBtn?.addEventListener("click", onCopy);
+    exportBtn?.addEventListener("click", onExport);
+    importBtn?.addEventListener("click", onImportOpen);
+    exportCopy?.addEventListener("click", onExportCopy);
+    exportShare?.addEventListener("click", onExportShare);
+    importGo?.addEventListener("click", onImportCheck);
+    importYes?.addEventListener("click", onImportYes);
+    importNo?.addEventListener("click", onImportNo);
+    importText?.addEventListener("input", onImportEdit);
+    restoreGo?.addEventListener("click", onRestoreGo);
+    restoreYes?.addEventListener("click", onRestoreYes);
+    restoreNo?.addEventListener("click", onRestoreNo);
+    restoreInput?.addEventListener("input", onRestoreEdit);
+    restoreInput?.addEventListener("keydown", onRestoreKey);
     cancel?.addEventListener("click", onCancel);
     input.addEventListener("keydown", onKey);
     window.setTimeout(() => {
