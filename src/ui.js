@@ -189,6 +189,59 @@ function muteButton(width, height, muted, box) {
   };
 }
 
+const BACK_GAP = 8;
+
+function bandsOverlap(a0, a1, b0, b1, gap = 0) {
+  return a0 < b1 + gap && a1 + gap > b0;
+}
+
+function rectsOverlap(a, b, gap = 0) {
+  return (
+    bandsOverlap(a.x, a.x + a.w, b.x, b.x + b.w, gap) &&
+    bandsOverlap(a.y, a.y + a.h, b.y, b.y + b.h, gap)
+  );
+}
+
+/**
+ * 静音钉在左下角时，返回不能被它盖住。
+ * 同一行：返回左缘至少在静音（以及同行的语言按钮）右缘再空 8px，宽度收到 rightEdge。
+ * 不在同一行但盒子相交：把返回整块抬到静音上方，再来一局跟着抬。
+ */
+function keepBackClearOfMute(buttons, rightEdge) {
+  const menu = buttons?.menu;
+  const mute = buttons?.mute;
+  if (!menu || !mute) return buttons;
+  const minW = 56;
+  const edge = Number.isFinite(rightEdge) ? rightEdge : menu.x + menu.w;
+  const sameRow = bandsOverlap(menu.y, menu.y + menu.h, mute.y, mute.y + mute.h, BACK_GAP);
+  if (sameRow) {
+    let left = mute.x + mute.w + BACK_GAP;
+    const lang = buttons.lang;
+    if (lang && bandsOverlap(lang.y, lang.y + lang.h, menu.y, menu.y + menu.h, 0)) {
+      left = Math.max(left, lang.x + lang.w + BACK_GAP);
+    }
+    if (menu.x < left) {
+      if (left + minW <= edge + 0.5) {
+        menu.x = left;
+        menu.w = Math.max(minW, edge - left);
+      } else {
+        const lift = menu.y + menu.h + BACK_GAP - mute.y;
+        if (lift > 0) {
+          menu.y -= lift;
+          if (buttons.again) buttons.again.y -= lift;
+        }
+      }
+    }
+  } else if (rectsOverlap(menu, mute, BACK_GAP)) {
+    const lift = menu.y + menu.h + BACK_GAP - mute.y;
+    if (lift > 0) {
+      menu.y -= lift;
+      if (buttons.again) buttons.again.y -= lift;
+    }
+  }
+  return buttons;
+}
+
 function langButton(width, height, place = "top") {
   const p = layoutPad(width, height);
   const code = getLang();
@@ -504,6 +557,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     };
     buttons.mute = muteDock;
     buttons.lang = langButton(width, height);
+    keepBackClearOfMute(buttons, x + w);
     if (options.pendingPrompt) Object.assign(buttons, promptButtons(width, height, options.pendingPrompt));
     buttons._shop = { panelY, panelW: w, panelX: x, stack, headerH, section, shareN, adN };
     return buttons;
@@ -512,7 +566,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
   if (state === "achieve") {
     const menuH = Math.max(42, 46 * s);
     const gap = 8;
-    const muteDock = { ...mute, y: height - padB - menuH, h: menuH };
+    const muteDock = muteButton(width, height, muted, { y: height - padB - menuH, h: menuH });
     const lang = {
       ...langButton(width, height, "dock"),
       y: muteDock.y,
@@ -533,6 +587,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
         h: menuH,
       },
     };
+    keepBackClearOfMute(buttons, width - padR);
     const list = options.achieveList || [];
     const unlocked = options.achieveUnlocked || {};
     const cols = 2;
@@ -567,7 +622,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     const menuH = Math.max(42, 46 * s);
     const tabH = Math.max(40, 44 * s);
     const gap = 8;
-    const muteDock = { ...mute, y: height - padB - menuH, h: menuH };
+    const muteDock = muteButton(width, height, muted, { y: height - padB - menuH, h: menuH });
     const lang = {
       ...langButton(width, height, "dock"),
       y: muteDock.y,
@@ -583,7 +638,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     const tabW = (width - padL - padR - 8) / 2;
     const home = options.boardScope !== "global";
     const title = options.boardTitle || "";
-    return {
+    const boardButtons = {
       "board-home": {
         id: "board-home",
         label: t("boardHome"),
@@ -632,6 +687,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
         h: menuH,
       },
     };
+    return keepBackClearOfMute(boardButtons, width - padR);
   }
 
   if (state === "codex") {
@@ -641,26 +697,29 @@ export function layoutButtons(width, height, state, muted = false, options = {})
   if (state === "gameover") {
     const w = Math.min(280 * s, width - padL - padR);
     const h = Math.max(48, 52 * s);
-    return {
-      again: {
-        id: "again",
-        label: t("again"),
-        x: (width - w) / 2,
-        y: height * 0.58,
-        w,
-        h,
+    return keepBackClearOfMute(
+      {
+        again: {
+          id: "again",
+          label: t("again"),
+          x: (width - w) / 2,
+          y: height * 0.58,
+          w,
+          h,
+        },
+        menu: {
+          id: "menu",
+          label: t("menu"),
+          x: (width - w) / 2,
+          y: height * 0.58 + h + 12,
+          w,
+          h,
+        },
+        mute,
+        lang: langButton(width, height),
       },
-      menu: {
-        id: "menu",
-        label: t("menu"),
-        x: (width - w) / 2,
-        y: height * 0.58 + h + 12,
-        w,
-        h,
-      },
-      mute,
-      lang: langButton(width, height),
-    };
+      width - padR,
+    );
   }
 
   if (options.summonPicker) {
@@ -839,7 +898,7 @@ export function layoutCodex(width, height, muted = false, themeId = "fruit") {
   const tabY = p.t;
   const tabBarH = tabRows * (tabH + tabGap) - tabGap;
   const btnY = height - p.b - backH;
-  const mute = { ...muteButton(width, height, muted), y: btnY, h: backH };
+  const mute = muteButton(width, height, muted, { y: btnY, h: backH });
   const dockGap = 8;
   const lang = {
     ...langButton(width, height, "dock"),
@@ -861,6 +920,7 @@ export function layoutCodex(width, height, muted = false, themeId = "fruit") {
     mute,
     lang,
   };
+  keepBackClearOfMute(buttons, width - p.r);
 
   const tabW = (width - p.l - p.r - tabGap * (tabCols - 1)) / tabCols;
   CONFIG.themes.order.forEach((id, i) => {
