@@ -14,11 +14,11 @@ import {
   scoreFromDeviation,
 } from "./score.js";
 import { collectionScore, hasGrandTrophy, stallStars, stallTrophy, unlockedStallIds } from "./progress.js";
-import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=139";
+import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=140";
 import { ACHIEVEMENTS, achievementSnapshot, pendingAchievements } from "./achievements.js?v=139";
 import { loadAchievements, loadCodex, loadEconomy, loadHighScore, saveAchievements, saveEconomy, saveHighScore, todayKey, unlockCodexEntry } from "./storage.js";
-import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=12";
-import { adHooks, adsStatus, isAdBusy, noteMeaningfulRun, notePlayTime } from "./ads.js?v=5";
+import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=13";
+import { adHooks, adsStatus, isAdBusy, isRewardPending, noteMeaningfulRun, notePlayTime } from "./ads.js?v=6";
 import { fetchBoard, isBoardOverlayOpen, loadBoardProfile, promptBoardName, promptBoardTitle, saveBoardProfile } from "./board.js?v=8";
 import { achieveTitle, getLang, setLang, t, themeName, typeLabel } from "./i18n.js?v=139";
 
@@ -228,7 +228,7 @@ export class Game {
   }
 
   buttons() {
-    return mergePromptButtons(
+    const buttons = mergePromptButtons(
       layoutButtons(this.width, this.height, this.state, this.muted, {
       unlockedCount: this.unlockedCount(),
       catalogTotal: this.catalogTotal(),
@@ -264,6 +264,9 @@ export class Game {
       this.height,
       this.prompt,
     );
+    const ad = buttons["ad-token"];
+    if (ad && (isRewardPending() || isAdBusy() || this.adBusyUi)) ad.disabled = true;
+    return buttons;
   }
 
   summonableTypes() {
@@ -835,7 +838,7 @@ export class Game {
   }
 
   tryRewardedAd() {
-    if (isAdBusy()) return;
+    if (isAdBusy() || isRewardPending()) return;
     onRewardedAd((ok, status) => {
       if (ok) this.grantTokens(CONFIG.economy.adTokens ?? CONFIG.economy.shareTokens, t("ad"));
       else if (status === "no_fill") this.tokenToast = { amount: 0, reason: t("noAd"), at: this.time };
