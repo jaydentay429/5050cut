@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
-import { bananaRadiusAt, BOX_TYPES, maxRadius, objectHeight, radiusAt } from "./shapeProfile.js?v=81";
+import { bananaRadiusAt, BOX_TYPES, maxRadius, objectHeight, radiusAt } from "./shapeProfile.js?v=82";
 import { makeNoiseBump, makeOuterCapTexture, makeSideTexture, makeSliceTexture } from "./sliceFace.js";
-import { cloneFruitModel, fruitEnvMap, fruitModelScale, fruitRestSize, fruitSliceMap, isFruitType } from "./fruitAssets.js?v=122";
+import { cloneFruitModel, fruitEnvMap, fruitModelScale, fruitRestSize, fruitSliceMap, isFruitType } from "./fruitAssets.js?v=123";
 import { getItem } from "./worlds.js?v=102";
 
 function clamp(value, min, max) {

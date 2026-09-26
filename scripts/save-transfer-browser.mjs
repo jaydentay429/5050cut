@@ -84,13 +84,29 @@ function harnessHtml() {
       });
     </script>
     <script type="module">
-      import { promptBoardName } from "/src/board.js?v=14";
+      import { promptBoardName } from "/src/board.js?v=15";
+      import { layoutButtons } from "/src/ui.js?v=149";
       const scene = document.getElementById("scene");
       scene.width = window.innerWidth;
       scene.height = window.innerHeight;
       const paint = scene.getContext("2d");
       paint.fillStyle = "#0055ff";
       paint.fillRect(0, 0, scene.width, scene.height);
+      const mute = document.createElement("div");
+      mute.id = "mute-standin";
+      mute.textContent = "静音";
+      mute.style.cssText = "position:fixed;z-index:2;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#3a2418;color:#f3e6d0;border:2px solid #e07a3d;border-radius:999px;font:700 14px sans-serif;pointer-events:auto;";
+      document.body.appendChild(mute);
+      window.__placeMute = () => {
+        const box = layoutButtons(window.innerWidth, window.innerHeight, "menu", true).mute;
+        mute.style.left = box.x + "px";
+        mute.style.top = box.y + "px";
+        mute.style.width = box.w + "px";
+        mute.style.height = box.h + "px";
+        return { x: box.x, y: box.y, w: box.w, h: box.h };
+      };
+      window.__placeMute();
+      window.addEventListener("resize", () => window.__placeMute());
       window.__openName = () => promptBoardName("本地新名字");
       document.documentElement.dataset.ready = "1";
     </script>
@@ -195,6 +211,49 @@ async function layoutProblems(page) {
     }
     return problems;
   });
+}
+
+async function assertMuteClear(page) {
+  const report = await page.evaluate(() => {
+    const muteBox = window.__placeMute();
+    const card = document.querySelector("#board-name .ad-consent-card");
+    card.scrollTop = card.scrollHeight;
+    const cardBox = card.getBoundingClientRect();
+    const mute = document.getElementById("mute-standin").getBoundingClientRect();
+    const problems = [];
+    const buttons = [...card.querySelectorAll("button")].filter((el) => {
+      if (el.closest("[hidden]")) return false;
+      const style = getComputedStyle(el);
+      return style.display !== "none" && style.visibility !== "hidden";
+    });
+    for (const el of buttons) {
+      const box = el.getBoundingClientRect();
+      const visible = {
+        left: Math.max(box.left, cardBox.left, 0),
+        right: Math.min(box.right, cardBox.right, window.innerWidth),
+        top: Math.max(box.top, cardBox.top, 0),
+        bottom: Math.min(box.bottom, cardBox.bottom, window.innerHeight),
+      };
+      if (visible.right - visible.left < 8 || visible.bottom - visible.top < 8) continue;
+      const name = el.getAttribute("data-i18n") || el.id || "button";
+      const samples = [
+        [(visible.left + visible.right) / 2, (visible.top + visible.bottom) / 2],
+        [visible.left + 6, (visible.top + visible.bottom) / 2],
+        [Math.min(visible.right - 4, mute.left + mute.width / 2), (visible.top + visible.bottom) / 2],
+      ];
+      for (const [x, y] of samples) {
+        if (x < visible.left || x > visible.right || y < visible.top || y > visible.bottom) continue;
+        const hit = document.elementFromPoint(x, y);
+        const covered = hit && (hit.id === "mute-standin" || hit.closest("#mute-standin"));
+        if (covered || !hit || (hit !== el && !el.contains(hit))) {
+          problems.push(`mute covers ${name} at ${Math.round(x)},${Math.round(y)} hit ${hit && (hit.id || hit.className)}`);
+        }
+      }
+    }
+    return { problems, mute: muteBox };
+  });
+  if (report.problems.length) throw new Error(report.problems.join("\n"));
+  return report.mute;
 }
 
 async function assertClickable(page) {
@@ -490,10 +549,8 @@ async function runWidth(browser, origin, width) {
   });
   await assertAboutCovered(page);
   await page.screenshot({ path: path.join(shotDir, `save-dialog-${width}.png`) });
-  await page.evaluate(() => {
-    const card = document.querySelector("#board-name .ad-consent-card");
-    card.scrollTop = card.scrollHeight;
-  });
+  const mute = await assertMuteClear(page);
+  console.log(`mute clear ${width}px`, mute);
   await page.screenshot({ path: path.join(shotDir, `save-dialog-${width}-bottom.png`) });
   const leakedRestore = await page.locator("body").innerText();
   if (leakedRestore.includes("恢复排行榜") || leakedRestore.includes("Restore leaderboard")) {
@@ -538,6 +595,7 @@ async function runWidth(browser, origin, width) {
   if (confirmLayout.length) throw new Error(confirmLayout.join("\n"));
   await page.locator("[data-import-confirm]").scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(shotDir, `save-confirm-zh-Hans-${width}.png`) });
+  await assertMuteClear(page);
   await Promise.all([
     page.waitForNavigation({ waitUntil: "domcontentloaded" }),
     page.click("[data-import-yes]"),
@@ -592,6 +650,7 @@ const browser = await playwright.chromium.launch({
 });
 let failed = false;
 try {
+  await runWidth(browser, origin, 320);
   await runWidth(browser, origin, 360);
   await runWidth(browser, origin, 390);
   for (const width of [360, 390]) {

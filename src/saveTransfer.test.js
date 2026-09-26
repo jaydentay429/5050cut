@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { saveErrorText } from "./board.js";
-import { setLang, t } from "./i18n.js?v=145";
+import { setLang, t } from "./i18n.js?v=146";
 import {
   BACKUP_KEY,
   BOARD_KEY,

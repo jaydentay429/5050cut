@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js?v=105";
-import { achieveHint, achieveTitle, getLang, t, themeName, titleIdFromStored, typeLabel } from "./i18n.js?v=145";
+import { achieveHint, achieveTitle, getLang, t, themeName, titleIdFromStored, typeLabel } from "./i18n.js?v=146";
 
 const TROPHY_CHIP = {
   none: { fill: "rgba(16, 12, 9, 0.45)", text: "rgba(243, 230, 208, 0.55)", stroke: "rgba(243, 230, 208, 0.28)" },
@@ -161,18 +161,85 @@ function pointInRect(point, rect) {
   );
 }
 
-function muteButton(width, height, muted) {
+function muteLabelWidth(h) {
+  const ctx = shopMeasureContext();
+  if (!ctx) return 0;
+  const size = Math.max(16, h * 0.38);
+  ctx.font = font(size, "700");
+  let max = 0;
+  for (const key of ["muteOn", "muteOff"]) {
+    max = Math.max(max, ctx.measureText(t(key)).width);
+  }
+  return max;
+}
+
+function muteButton(width, height, muted, box) {
   const p = layoutPad(width, height);
-  const w = Math.max(72, 82 * p.s);
-  const h = Math.max(40, 44 * p.s);
+  const h = box?.h || Math.max(40, 44 * p.s);
+  const textW = muteLabelWidth(h);
+  let w = Math.max(72, 82 * p.s, Math.ceil(textW + 28));
+  if (box?.maxW) w = Math.max(72, Math.min(w, box.maxW));
   return {
     id: "mute",
     label: muted ? t("muteOn") : t("muteOff"),
-    x: p.l,
-    y: height - p.b - h,
+    x: box?.x ?? p.l,
+    y: box?.y ?? height - p.b - h,
     w,
     h,
   };
+}
+
+const BACK_GAP = 8;
+
+function bandsOverlap(a0, a1, b0, b1, gap = 0) {
+  return a0 < b1 + gap && a1 + gap > b0;
+}
+
+function rectsOverlap(a, b, gap = 0) {
+  return (
+    bandsOverlap(a.x, a.x + a.w, b.x, b.x + b.w, gap) &&
+    bandsOverlap(a.y, a.y + a.h, b.y, b.y + b.h, gap)
+  );
+}
+
+/**
+ * 静音钉在左下角时，返回不能被它盖住。
+ * 同一行：返回左缘至少在静音（以及同行的语言按钮）右缘再空 8px，宽度收到 rightEdge。
+ * 不在同一行但盒子相交：把返回整块抬到静音上方，再来一局跟着抬。
+ */
+function keepBackClearOfMute(buttons, rightEdge) {
+  const menu = buttons?.menu;
+  const mute = buttons?.mute;
+  if (!menu || !mute) return buttons;
+  const minW = 56;
+  const edge = Number.isFinite(rightEdge) ? rightEdge : menu.x + menu.w;
+  const sameRow = bandsOverlap(menu.y, menu.y + menu.h, mute.y, mute.y + mute.h, BACK_GAP);
+  if (sameRow) {
+    let left = mute.x + mute.w + BACK_GAP;
+    const lang = buttons.lang;
+    if (lang && bandsOverlap(lang.y, lang.y + lang.h, menu.y, menu.y + menu.h, 0)) {
+      left = Math.max(left, lang.x + lang.w + BACK_GAP);
+    }
+    if (menu.x < left) {
+      if (left + minW <= edge + 0.5) {
+        menu.x = left;
+        menu.w = Math.max(minW, edge - left);
+      } else {
+        const lift = menu.y + menu.h + BACK_GAP - mute.y;
+        if (lift > 0) {
+          menu.y -= lift;
+          if (buttons.again) buttons.again.y -= lift;
+        }
+      }
+    }
+  } else if (rectsOverlap(menu, mute, BACK_GAP)) {
+    const lift = menu.y + menu.h + BACK_GAP - mute.y;
+    if (lift > 0) {
+      menu.y -= lift;
+      if (buttons.again) buttons.again.y -= lift;
+    }
+  }
+  return buttons;
 }
 
 function langButton(width, height, place = "top") {
@@ -470,17 +537,27 @@ export function layoutButtons(width, height, state, muted = false, options = {})
       w,
       h: shareH,
     };
+    const rowY = adY + shareH + 12;
+    const dockGap = 8;
+    const muteDock = muteButton(width, height, muted, {
+      x,
+      y: rowY,
+      h: menuH,
+      maxW: Math.max(72, w - 72 - dockGap),
+    });
+    const menuX = muteDock.x + muteDock.w + dockGap;
     buttons.menu = {
       id: "menu",
       label: t("back"),
       kind: "ghost",
-      x,
-      y: adY + shareH + 12,
-      w,
+      x: menuX,
+      y: rowY,
+      w: Math.max(64, x + w - menuX),
       h: menuH,
     };
-    buttons.mute = mute;
+    buttons.mute = muteDock;
     buttons.lang = langButton(width, height);
+    keepBackClearOfMute(buttons, x + w);
     if (options.pendingPrompt) Object.assign(buttons, promptButtons(width, height, options.pendingPrompt));
     buttons._shop = { panelY, panelW: w, panelX: x, stack, headerH, section, shareN, adN };
     return buttons;
@@ -489,7 +566,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
   if (state === "achieve") {
     const menuH = Math.max(42, 46 * s);
     const gap = 8;
-    const muteDock = { ...mute, y: height - padB - menuH, h: menuH };
+    const muteDock = muteButton(width, height, muted, { y: height - padB - menuH, h: menuH });
     const lang = {
       ...langButton(width, height, "dock"),
       y: muteDock.y,
@@ -510,6 +587,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
         h: menuH,
       },
     };
+    keepBackClearOfMute(buttons, width - padR);
     const list = options.achieveList || [];
     const unlocked = options.achieveUnlocked || {};
     const cols = 2;
@@ -544,7 +622,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     const menuH = Math.max(42, 46 * s);
     const tabH = Math.max(40, 44 * s);
     const gap = 8;
-    const muteDock = { ...mute, y: height - padB - menuH, h: menuH };
+    const muteDock = muteButton(width, height, muted, { y: height - padB - menuH, h: menuH });
     const lang = {
       ...langButton(width, height, "dock"),
       y: muteDock.y,
@@ -560,7 +638,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     const tabW = (width - padL - padR - 8) / 2;
     const home = options.boardScope !== "global";
     const title = options.boardTitle || "";
-    return {
+    const boardButtons = {
       "board-home": {
         id: "board-home",
         label: t("boardHome"),
@@ -609,6 +687,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
         h: menuH,
       },
     };
+    return keepBackClearOfMute(boardButtons, width - padR);
   }
 
   if (state === "codex") {
@@ -618,26 +697,29 @@ export function layoutButtons(width, height, state, muted = false, options = {})
   if (state === "gameover") {
     const w = Math.min(280 * s, width - padL - padR);
     const h = Math.max(48, 52 * s);
-    return {
-      again: {
-        id: "again",
-        label: t("again"),
-        x: (width - w) / 2,
-        y: height * 0.58,
-        w,
-        h,
+    return keepBackClearOfMute(
+      {
+        again: {
+          id: "again",
+          label: t("again"),
+          x: (width - w) / 2,
+          y: height * 0.58,
+          w,
+          h,
+        },
+        menu: {
+          id: "menu",
+          label: t("menu"),
+          x: (width - w) / 2,
+          y: height * 0.58 + h + 12,
+          w,
+          h,
+        },
+        mute,
+        lang: langButton(width, height),
       },
-      menu: {
-        id: "menu",
-        label: t("menu"),
-        x: (width - w) / 2,
-        y: height * 0.58 + h + 12,
-        w,
-        h,
-      },
-      mute,
-      lang: langButton(width, height),
-    };
+      width - padR,
+    );
   }
 
   if (options.summonPicker) {
@@ -816,7 +898,7 @@ export function layoutCodex(width, height, muted = false, themeId = "fruit") {
   const tabY = p.t;
   const tabBarH = tabRows * (tabH + tabGap) - tabGap;
   const btnY = height - p.b - backH;
-  const mute = { ...muteButton(width, height, muted), y: btnY, h: backH };
+  const mute = muteButton(width, height, muted, { y: btnY, h: backH });
   const dockGap = 8;
   const lang = {
     ...langButton(width, height, "dock"),
@@ -838,6 +920,7 @@ export function layoutCodex(width, height, muted = false, themeId = "fruit") {
     mute,
     lang,
   };
+  keepBackClearOfMute(buttons, width - p.r);
 
   const tabW = (width - p.l - p.r - tabGap * (tabCols - 1)) / tabCols;
   CONFIG.themes.order.forEach((id, i) => {
@@ -1226,9 +1309,17 @@ function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) 
   }
 
   ctx.fillStyle = spec.buttonText;
-  ctx.font = font(Math.max(16, button.h * 0.38), "700");
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  let labelSize = Math.max(16, button.h * 0.38);
+  ctx.font = font(labelSize, "700");
+  if (button.id === "mute") {
+    const limit = Math.max(8, button.w - 22);
+    while (labelSize > 10 && ctx.measureText(button.label).width > limit) {
+      labelSize -= 0.5;
+      ctx.font = font(labelSize, "700");
+    }
+  }
   ctx.fillText(button.label, button.x + button.w / 2, button.y + button.h / 2 + 1);
 }
 
@@ -1770,11 +1861,46 @@ function drawOrbitPad(ctx, pad, { active, hover, time, nudge }) {
   ctx.restore();
 }
 
+function fitHintLine(ctx, text, maxWidth, size, minSize, weight) {
+  ctx.save();
+  let next = size;
+  ctx.font = font(next, weight);
+  const tooWide = () => ctx.measureText(text).width > maxWidth + 0.5;
+  while (next > minSize && tooWide()) {
+    next = Math.round((next - 0.5) * 10) / 10;
+    ctx.font = font(next, weight);
+  }
+  let result;
+  if (!tooWide()) {
+    result = { size: next, lines: [text], widths: [ctx.measureText(text).width] };
+  } else {
+    ctx.font = font(minSize, weight);
+    const lines = wrapLines(ctx, text, maxWidth);
+    result = {
+      size: minSize,
+      lines,
+      widths: lines.map((line) => ctx.measureText(line).width),
+    };
+  }
+  ctx.restore();
+  return result;
+}
+
 function drawHint(ctx, width, height, model) {
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
   const boxW = Math.min(width - 24, Math.max(220, 252 * s));
-  const boxH = Math.max(72, 80 * s);
+  const textXRel = 52 * s;
+  const maxTextW = Math.max(40, boxW - textXRel - 12);
+  const cutLine = fitHintLine(ctx, t("hintCut"), maxTextW, Math.max(15, 17 * s), 12, "800");
+  const spinLine = fitHintLine(ctx, t("hintSpin"), maxTextW, Math.max(12, 13 * s), 11, "600");
+  const wrapped = cutLine.lines.length > 1 || spinLine.lines.length > 1;
+  let boxH = Math.max(72, 80 * s);
+  if (wrapped) {
+    const tagH = Math.max(18, 20 * s);
+    const blockH = (row) => row.lines.length * row.size * 1.3;
+    boxH = Math.max(boxH, 10 + tagH + 10 + blockH(cutLine) + 6 + blockH(spinLine) + 12);
+  }
   const itemX = model.centerScreen?.x ?? width / 2;
   const itemY = model.centerScreen?.y ?? height * 0.48;
   const orbit = model.orbitPad;
@@ -1806,7 +1932,10 @@ function drawHint(ctx, width, height, model) {
   ctx.stroke();
   ctx.globalAlpha = 1;
 
-  const tagW = Math.max(48, 56 * s);
+  const howSize = Math.max(11, 12 * s);
+  const howText = t("how");
+  ctx.font = font(howSize, "800");
+  const tagW = Math.min(boxW - 24, Math.max(48, 56 * s, Math.ceil(ctx.measureText(howText).width + 16)));
   const tagH = Math.max(18, 20 * s);
   roundRect(ctx, x + 12, y + 10, tagW, tagH, tagH / 2);
   ctx.fillStyle = spec.accent;
@@ -1814,8 +1943,8 @@ function drawHint(ctx, width, height, model) {
   ctx.fillStyle = spec.buttonText;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = font(Math.max(11, 12 * s), "800");
-  ctx.fillText(t("how"), x + 12 + tagW / 2, y + 10 + tagH / 2 + 0.5);
+  ctx.font = font(howSize, "800");
+  ctx.fillText(howText, x + 12 + tagW / 2, y + 10 + tagH / 2 + 0.5);
 
   const iconX = x + 28;
   const iconY = y + boxH * 0.64;
@@ -1836,11 +1965,45 @@ function drawHint(ctx, width, height, model) {
   ctx.fillStyle = spec.cream;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = font(Math.max(15, 17 * s), "800");
-  ctx.fillText(t("hintCut"), x + 52 * s, y + boxH * 0.54);
-  ctx.font = font(Math.max(12, 13 * s), "600");
-  ctx.fillText(t("hintSpin"), x + 52 * s, y + boxH * 0.76);
+  const textX = x + textXRel;
+  const measured = [];
+  const paintRow = (row, weight, centers) => {
+    ctx.font = font(row.size, weight);
+    row.lines.forEach((line, i) => {
+      const widthPx = row.widths[i];
+      const centerY = centers[i];
+      ctx.fillText(line, textX, centerY);
+      measured.push({
+        text: line,
+        x: textX,
+        y: centerY - row.size / 2,
+        w: widthPx,
+        h: row.size,
+      });
+    });
+  };
+  if (!wrapped) {
+    paintRow(cutLine, "800", [y + boxH * 0.54]);
+    paintRow(spinLine, "600", [y + boxH * 0.76]);
+  } else {
+    const cutTop = y + 10 + tagH + 10;
+    const cutCenters = cutLine.lines.map((_, i) => cutTop + cutLine.size * 1.3 * (i + 0.5));
+    const spinTop = cutTop + cutLine.size * 1.3 * cutLine.lines.length + 6;
+    const spinCenters = spinLine.lines.map((_, i) => spinTop + spinLine.size * 1.3 * (i + 0.5));
+    paintRow(cutLine, "800", cutCenters);
+    paintRow(spinLine, "600", spinCenters);
+  }
+  rememberHintLayout({ x, y, w: boxW, h: boxH }, measured);
   ctx.restore();
+}
+
+function rememberHintLayout(box, lines) {
+  try {
+    if (typeof location === "undefined" || !new URLSearchParams(location.search).has("shopcheck")) return;
+    globalThis.__hintLayout = box ? { box, lines } : null;
+  } catch {
+    /* ignore */
+  }
 }
 
 function drawFeedback(ctx, width, height, model) {
@@ -2495,6 +2658,8 @@ export function renderUI(ctx, model) {
 
   if (model.showHint && !model.paused && !model.liveStroke) {
     drawHint(ctx, width, height, model);
+  } else {
+    rememberHintLayout(null, null);
   }
 
   if (model.liveStroke) {
@@ -2513,6 +2678,7 @@ export function renderUI(ctx, model) {
   } else {
     drawBuyConfirm(ctx, width, height, model);
   }
+  publishShopcheck(model);
 }
 
 function drawPause(ctx, width, height, model) {
