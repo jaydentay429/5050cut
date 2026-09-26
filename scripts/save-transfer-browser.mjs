@@ -9,6 +9,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { decodeSaveCode } from "../src/saveTransfer.js";
 
@@ -59,9 +60,22 @@ function harnessHtml() {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>save transfer harness</title>
-    <link rel="stylesheet" href="/style.css?v=11" />
+    <link rel="stylesheet" href="/style.css?v=12" />
   </head>
   <body>
+    <main id="about">
+      <h1>50/50 Cut</h1>
+      <p>
+        Swipe through the center of the object to cut it in half. If the middle is hard to judge, drag the pad on the right to turn the object, then cut.
+      </p>
+      <p>
+        A slice through the exact center scores 100. The farther the cut sits from the middle, the lower the score, and a cut too far off center scores nothing.
+      </p>
+    </main>
+    <div id="stage">
+      <canvas id="scene"></canvas>
+      <canvas id="game"></canvas>
+    </div>
     ${block}
     <script>
       window.__errors = [];
@@ -71,6 +85,12 @@ function harnessHtml() {
     </script>
     <script type="module">
       import { promptBoardName } from "/src/board.js?v=11";
+      const scene = document.getElementById("scene");
+      scene.width = window.innerWidth;
+      scene.height = window.innerHeight;
+      const paint = scene.getContext("2d");
+      paint.fillStyle = "#0055ff";
+      paint.fillRect(0, 0, scene.width, scene.height);
       window.__openName = () => promptBoardName("本地新名字");
       document.documentElement.dataset.ready = "1";
     </script>
@@ -195,6 +215,119 @@ async function assertClickable(page) {
   if (problems.length) throw new Error(problems.join("\n"));
 }
 
+function paeth(a, b, c) {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+}
+
+function decodePng(buf) {
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  const idat = [];
+  while (offset + 8 <= buf.length) {
+    const len = buf.readUInt32BE(offset);
+    const type = buf.toString("ascii", offset + 4, offset + 8);
+    const data = buf.subarray(offset + 8, offset + 8 + len);
+    if (type === "IHDR") {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === "IDAT") {
+      idat.push(data);
+    } else if (type === "IEND") break;
+    offset += 12 + len;
+  }
+  if (bitDepth !== 8 || (colorType !== 2 && colorType !== 6)) {
+    throw new Error(`unsupported png ${bitDepth}/${colorType}`);
+  }
+  const channels = colorType === 6 ? 4 : 3;
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = width * channels;
+  const out = Buffer.alloc(width * height * 4);
+  let prev = Buffer.alloc(stride);
+  let pos = 0;
+  for (let y = 0; y < height; y += 1) {
+    const filter = raw[pos];
+    pos += 1;
+    const row = Buffer.from(raw.subarray(pos, pos + stride));
+    pos += stride;
+    for (let i = 0; i < stride; i += 1) {
+      const left = i >= channels ? row[i - channels] : 0;
+      const up = prev[i];
+      const ul = i >= channels ? prev[i - channels] : 0;
+      const x = row[i];
+      if (filter === 0) row[i] = x;
+      else if (filter === 1) row[i] = (x + left) & 255;
+      else if (filter === 2) row[i] = (x + up) & 255;
+      else if (filter === 3) row[i] = (x + Math.floor((left + up) / 2)) & 255;
+      else if (filter === 4) row[i] = (x + paeth(left, up, ul)) & 255;
+      else throw new Error(`png filter ${filter}`);
+    }
+    for (let x = 0; x < width; x += 1) {
+      const s = x * channels;
+      const d = (y * width + x) * 4;
+      out[d] = row[s];
+      out[d + 1] = row[s + 1];
+      out[d + 2] = row[s + 2];
+      out[d + 3] = channels === 4 ? row[s + 3] : 255;
+    }
+    prev = row;
+  }
+  return { width, height, data: out };
+}
+
+async function assertAboutCovered(page) {
+  const info = await page.evaluate(() => {
+    const about = document.getElementById("about");
+    const scene = document.getElementById("scene");
+    const game = document.getElementById("game");
+    const card = document.querySelector("#board-name .ad-consent-card");
+    if (!about || !scene || !game || !card) return { ok: false, reason: "missing about or canvas" };
+    const sceneVisibility = getComputedStyle(scene).visibility;
+    const gameVisibility = getComputedStyle(game).visibility;
+    if (sceneVisibility === "hidden" || gameVisibility === "hidden") {
+      return { ok: false, reason: `canvas hidden scene=${sceneVisibility} game=${gameVisibility}` };
+    }
+    if (!document.body.classList.contains("overlay-open")) return { ok: false, reason: "missing overlay-open" };
+    if (!(about.innerText || "").includes("Swipe through the center")) return { ok: false, reason: "about copy missing" };
+    const cardBox = card.getBoundingClientRect();
+    const points = [
+      [Math.round(window.innerWidth / 2), 16],
+      [16, 16],
+      [window.innerWidth - 16, 16],
+      [16, Math.round(window.innerHeight / 2)],
+      [window.innerWidth - 16, Math.round(window.innerHeight / 2)],
+    ].filter(([x, y]) => x < cardBox.left || x > cardBox.right || y < cardBox.top || y > cardBox.bottom);
+    return { ok: true, points };
+  });
+  if (!info.ok) throw new Error(info.reason);
+  if (!info.points.length) throw new Error("no backdrop sample outside the dialog card");
+  const png = decodePng(await page.screenshot({ type: "png" }));
+  const viewport = page.viewportSize();
+  const scaleX = png.width / viewport.width;
+  const scaleY = png.height / viewport.height;
+  const bad = [];
+  for (const [x, y] of info.points) {
+    const sx = Math.min(png.width - 1, Math.max(0, Math.round(x * scaleX)));
+    const sy = Math.min(png.height - 1, Math.max(0, Math.round(y * scaleY)));
+    const i = (sy * png.width + sx) * 4;
+    const r = png.data[i];
+    const g = png.data[i + 1];
+    const b = png.data[i + 2];
+    if (!(b > 100 && r < 40 && b > r + 60)) bad.push(`${x},${y} rgb(${r},${g},${b})`);
+  }
+  if (bad.length) throw new Error(`#about shows through the dialog: ${bad.join("; ")}`);
+}
+
 async function runWidth(browser, origin, width) {
   const context = await browser.newContext({
     viewport: { width, height: 800 },
@@ -244,6 +377,7 @@ async function runWidth(browser, origin, width) {
   });
   await page.goto(`${origin}/harness.html`, { waitUntil: "domcontentloaded", timeout: 8000 });
   await openDialog(page);
+  await assertAboutCovered(page);
   await page.click("[data-save-export]");
   await page.waitForFunction(() => (document.querySelector("[data-export-text]")?.value || "").startsWith("5050CUT1:"));
   const code = await page.locator("[data-export-text]").inputValue();
@@ -268,6 +402,7 @@ async function runWidth(browser, origin, width) {
   await page.evaluate(() => {
     document.querySelector("#board-name .ad-consent-card").scrollTop = 0;
   });
+  await assertAboutCovered(page);
   await page.screenshot({ path: path.join(shotDir, `save-dialog-${width}.png`) });
   await page.evaluate(() => {
     const card = document.querySelector("#board-name .ad-consent-card");
