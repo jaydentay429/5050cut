@@ -153,9 +153,9 @@ body.overlay-open {
   user-select: text;
 }
 
+/* 画布藏起来后，#stage 是透明的，半透明弹窗会露出 #about 里给搜索引擎的介绍。保持绘制，只挡住点击。 */
 body.overlay-open #scene,
 body.overlay-open #game {
-  visibility: hidden;
   pointer-events: none;
 }
 
