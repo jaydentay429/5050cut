@@ -882,17 +882,22 @@ export function hitButton(buttons, point) {
 }
 
 function drawRewardSpinner(ctx, button) {
-  const r = Math.max(5, Math.min(9, button.h * 0.18));
-  const cx = button.x + button.w - r - 12;
+  const r = Math.max(8, Math.min(12, button.h * 0.28));
+  const cx = button.x + button.w - r - 14;
   const cy = button.y + button.h / 2;
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate((performance.now() / 140) % (Math.PI * 2));
-  ctx.strokeStyle = "rgba(243, 230, 208, 0.92)";
-  ctx.lineWidth = 2.25;
+  ctx.strokeStyle = "rgba(243, 230, 208, 0.35)";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = "#f3e6d0";
+  ctx.lineWidth = 2.75;
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 1.35);
+  ctx.arc(0, 0, r, -0.2, Math.PI * 1.15);
   ctx.stroke();
   ctx.restore();
 }
@@ -960,19 +965,19 @@ function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) 
     roundRect(ctx, button.x, button.y, button.w, button.h, round);
     const on = button.kind === "tab" && button.active;
     ctx.fillStyle = locked
-      ? "rgba(243, 230, 208, 0.06)"
+      ? "rgba(243, 230, 208, 0.04)"
       : on || pressed
         ? "rgba(224, 122, 61, 0.38)"
         : "rgba(243, 230, 208, 0.12)";
     ctx.fill();
     ctx.strokeStyle = locked
-      ? "rgba(243, 230, 208, 0.28)"
+      ? "rgba(243, 230, 208, 0.22)"
       : on || hovered || pressed
         ? spec.cream
         : "rgba(243, 230, 208, 0.45)";
     ctx.lineWidth = !locked && (on || hovered || pressed) ? 2 : 1.5;
     ctx.stroke();
-    ctx.fillStyle = locked ? "rgba(243, 230, 208, 0.55)" : spec.cream;
+    ctx.fillStyle = locked ? "rgba(243, 230, 208, 0.38)" : spec.cream;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const cx = button.x + button.w / 2;
