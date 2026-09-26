@@ -887,10 +887,31 @@ export function hitButton(buttons, point) {
   if (!point) return null;
   const list = Object.values(buttons);
   for (let i = list.length - 1; i >= 0; i -= 1) {
-    if (!list[i].id || list[i].id.startsWith("_")) continue;
+    if (!list[i].id || list[i].id.startsWith("_") || list[i].disabled) continue;
     if (pointInRect(point, list[i])) return list[i];
   }
   return null;
+}
+
+function drawRewardSpinner(ctx, button) {
+  const r = Math.max(8, Math.min(12, button.h * 0.28));
+  const cx = button.x + button.w - r - 14;
+  const cy = button.y + button.h / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate((performance.now() / 140) % (Math.PI * 2));
+  ctx.strokeStyle = "rgba(243, 230, 208, 0.35)";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = "#f3e6d0";
+  ctx.lineWidth = 2.75;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(0, 0, r, -0.2, Math.PI * 1.15);
+  ctx.stroke();
+  ctx.restore();
 }
 
 let shopMeasureCtx = null;
@@ -1090,6 +1111,11 @@ function assignShopTextBox(ctx, button) {
 
 function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) {
   if (!button) return;
+  if (button.disabled) {
+    hovered = false;
+    pressed = false;
+    pulse = false;
+  }
   const spec = CONFIG.ui;
 
   if (button.kind === "codex") return;
@@ -1147,17 +1173,24 @@ function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) 
 
   ctx.save();
   if (button.kind === "ghost" || button.kind === "tab" || button.kind === "yaw") {
+    const locked = Boolean(button.disabled);
     const round = button.kind === "yaw" ? button.h / 2 : button.h / 2;
     roundRect(ctx, button.x, button.y, button.w, button.h, round);
     const on = button.kind === "tab" && button.active;
-    ctx.fillStyle = on || pressed
-      ? "rgba(224, 122, 61, 0.38)"
-      : "rgba(243, 230, 208, 0.12)";
+    ctx.fillStyle = locked
+      ? "rgba(243, 230, 208, 0.04)"
+      : on || pressed
+        ? "rgba(224, 122, 61, 0.38)"
+        : "rgba(243, 230, 208, 0.12)";
     ctx.fill();
-    ctx.strokeStyle = on || hovered || pressed ? spec.cream : "rgba(243, 230, 208, 0.45)";
-    ctx.lineWidth = on || hovered || pressed ? 2 : 1.5;
+    ctx.strokeStyle = locked
+      ? "rgba(243, 230, 208, 0.22)"
+      : on || hovered || pressed
+        ? spec.cream
+        : "rgba(243, 230, 208, 0.45)";
+    ctx.lineWidth = !locked && (on || hovered || pressed) ? 2 : 1.5;
     ctx.stroke();
-    ctx.fillStyle = spec.cream;
+    ctx.fillStyle = locked ? "rgba(243, 230, 208, 0.38)" : spec.cream;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const cx = button.x + button.w / 2;
@@ -1171,6 +1204,7 @@ function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) 
       ctx.font = font(Math.max(11, button.h * (button.kind === "yaw" ? 0.48 : button.kind === "tab" ? 0.32 : button.w < 120 ? 0.28 : 0.36)), "700");
       ctx.fillText(button.label, cx, button.y + button.h / 2 + (button.kind === "yaw" ? -1 : 1));
     }
+    if (locked) drawRewardSpinner(ctx, button);
     ctx.restore();
     return;
   }

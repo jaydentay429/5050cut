@@ -5,9 +5,15 @@
 import { CONFIG } from "./config.js?v=105";
 import { setFocusMuted } from "./audio.js?v=67";
 
+/** 激励广告在收到 beforeReward / beforeAd 之前的等待上限。 */
+const REWARD_AD_TIMEOUT_MS = 5000;
+
 let hooks = { pause: () => {}, resume: () => {} };
 let inited = false;
 let busy = false;
+let rewardSerial = 0;
+let rewardActiveId = 0;
+let rewardPending = false;
 let playSeconds = 0;
 let lastInterstitialAt = -999;
 let meaningfulRuns = 0;
@@ -27,6 +33,10 @@ export function noteMeaningfulRun() {
 
 export function isAdBusy() {
   return busy;
+}
+
+export function isRewardPending() {
+  return rewardPending;
 }
 
 function isLocal() {
@@ -146,11 +156,19 @@ export async function showInterstitial(placementId) {
   });
 }
 
+function liveRewardAdBreak() {
+  if (typeof window === "undefined" || typeof window.adBreak !== "function") return null;
+  // 本机商店默认模拟发奖。验证脚本可设 __FORCE_LIVE_ADS__ 走真实 adBreak。
+  if (window.__FORCE_LIVE_ADS__) return window.adBreak;
+  if (isLocal() || !clientId()) return null;
+  return window.adBreak;
+}
+
 export async function showRewarded(placementId) {
   initAds();
-  if (busy) return { status: "error", error: "busy" };
-  const adBreak = typeof window !== "undefined" ? window.adBreak : null;
-  if (!adBreak || isLocal() || !clientId()) {
+  if (busy || rewardPending) return { status: "error", error: "busy" };
+  const adBreak = liveRewardAdBreak();
+  if (!adBreak) {
     if (isLocal()) {
       pauseAll();
       await new Promise((r) => setTimeout(r, 1100));
@@ -160,36 +178,83 @@ export async function showRewarded(placementId) {
     return { status: "no_fill" };
   }
 
+  const requestId = ++rewardSerial;
+  rewardActiveId = requestId;
+  rewardPending = true;
+
   return new Promise((resolve) => {
     let viewed = false;
     let paused = false;
-    adBreak({
-      type: "reward",
-      name: placementId || "shop_tokens",
-      beforeReward: (showAdFn) => showAdFn(),
-      beforeAd: () => {
-        paused = true;
-        pauseAll();
-      },
-      afterAd: () => {
-        if (paused) resumeAll();
-      },
-      adViewed: () => {
-        viewed = true;
-      },
-      adDismissed: () => {
-        viewed = false;
-      },
-      adBreakDone: (info) => {
-        if (paused && busy) resumeAll();
-        if (viewed || info?.breakStatus === "viewed") return resolve({ status: "rewarded" });
-        if (info?.breakStatus === "dismissed") return resolve({ status: "closed" });
-        const status = info?.breakStatus || "other";
-        if (["noAdPreloaded", "notReady", "timeout", "other", "ignored"].includes(status)) {
-          return resolve({ status: "no_fill" });
-        }
-        resolve({ status: "error", error: status });
-      },
-    });
+    let settled = false;
+    const current = () => !settled && rewardActiveId === requestId;
+
+    const timer = setTimeout(() => {
+      if (!current()) return;
+      settled = true;
+      rewardActiveId = 0;
+      rewardPending = false;
+      resolve({ status: "no_fill" });
+    }, REWARD_AD_TIMEOUT_MS);
+
+    const acknowledge = () => {
+      if (!current()) return false;
+      clearTimeout(timer);
+      return true;
+    };
+
+    const finish = (result) => {
+      if (!current()) return;
+      settled = true;
+      clearTimeout(timer);
+      rewardActiveId = 0;
+      rewardPending = false;
+      if (paused && busy) resumeAll();
+      resolve(result);
+    };
+
+    try {
+      adBreak({
+        type: "reward",
+        name: placementId || "shop_tokens",
+        beforeReward: (showAdFn) => {
+          if (!acknowledge()) return;
+          if (typeof showAdFn !== "function") return;
+          try {
+            showAdFn();
+          } catch (error) {
+            if (current()) finish({ status: "error", error: String(error?.message || error) });
+          }
+        },
+        beforeAd: () => {
+          if (!acknowledge()) return;
+          paused = true;
+          pauseAll();
+        },
+        afterAd: () => {
+          if (!current()) return;
+          if (paused) resumeAll();
+        },
+        adViewed: () => {
+          if (!current()) return;
+          viewed = true;
+        },
+        adDismissed: () => {
+          if (!current()) return;
+          viewed = false;
+        },
+        adBreakDone: (info) => {
+          if (!current()) return;
+          if (viewed || info?.breakStatus === "viewed") return finish({ status: "rewarded" });
+          if (info?.breakStatus === "dismissed") return finish({ status: "closed" });
+          const status = info?.breakStatus || "other";
+          if (["noAdPreloaded", "notReady", "timeout", "other", "ignored"].includes(status)) {
+            return finish({ status: "no_fill" });
+          }
+          finish({ status: "error", error: status });
+        },
+      });
+    } catch (error) {
+      finish({ status: "error", error: String(error?.message || error) });
+    }
   });
 }
