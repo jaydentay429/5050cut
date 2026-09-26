@@ -84,8 +84,8 @@ function harnessHtml() {
       });
     </script>
     <script type="module">
-      import { promptBoardName } from "/src/board.js?v=15";
-      import { layoutButtons } from "/src/ui.js?v=149";
+      import { promptBoardName } from "/src/board.js?v=16";
+      import { layoutButtons } from "/src/ui.js?v=150";
       const scene = document.getElementById("scene");
       scene.width = window.innerWidth;
       scene.height = window.innerHeight;

@@ -1,4 +1,4 @@
-import { CONFIG } from "./config.js?v=92";
+import { CONFIG } from "./config.js?v=105";
 
 /** Local: `/assets/...`. Production: `https://cdn.example.com/assets/...`. */
 export function assetUrl(rel) {

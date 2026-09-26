@@ -1,4 +1,4 @@
-import { CONFIG } from "./config.js";
+import { CONFIG } from "./config.js?v=105";
 
 function almostEqual(a, b, eps = 0.6) {
   return Math.abs(a - b) < eps;

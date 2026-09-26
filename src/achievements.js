@@ -1,9 +1,9 @@
 /**
  * 成就目录。解锁条件只读快照，发币在 Game.flushAchievements。
  */
-import { CONFIG } from "./config.js?v=92";
+import { CONFIG } from "./config.js?v=105";
 import { getItem } from "./worlds.js?v=102";
-import { hasGrandTrophy, stallTrophy } from "./progress.js";
+import { hasGrandTrophy, stallTrophy } from "./progress.js?v=1";
 
 /** HUD 总分（含连击加成），不是满分刀 ×100。 */
 function runTotal(s) {
