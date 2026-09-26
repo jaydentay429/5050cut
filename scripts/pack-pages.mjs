@@ -23,6 +23,9 @@ await mkdir(dist, { recursive: true });
 
 const copies = [
   "index.html",
+  "404.html",
+  "robots.txt",
+  "sitemap.xml",
   "style.css",
   "favicon.svg",
   "_headers",

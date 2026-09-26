@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://5050cut.com/sitemap.xml

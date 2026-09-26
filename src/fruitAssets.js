@@ -105,7 +105,7 @@ export async function ensureFruitModel(type) {
   if (!loading[type]) {
     if (!gltfLoader) {
       const draco = new DRACOLoader();
-      draco.setDecoderPath("./vendor/draco/");
+      draco.setDecoderPath(new URL("../vendor/draco/", import.meta.url).href);
       gltfLoader = new GLTFLoader();
       gltfLoader.setDRACOLoader(draco);
     }

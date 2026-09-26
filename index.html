@@ -1,32 +1,67 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>对半切</title>
-    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="style.css" />
+    <title>50/50 Cut — Slice through the center</title>
+    <meta
+      name="description"
+      content="Swipe through the center of an object to cut it in half. A centered cut scores 100, and cuts of 85 or higher build a combo. Free in the browser."
+    />
+    <link rel="canonical" href="https://5050cut.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="50/50 Cut — Slice through the center" />
+    <meta
+      property="og:description"
+      content="Swipe through the center of an object to cut it in half. A centered cut scores 100, and cuts of 85 or higher build a combo. Free in the browser."
+    />
+    <meta property="og:url" content="https://5050cut.com/" />
+    <meta property="og:image" content="https://5050cut.com/assets/env/fruit_stall.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="50/50 Cut — Slice through the center" />
+    <meta
+      name="twitter:description"
+      content="Swipe through the center of an object to cut it in half. A centered cut scores 100, and cuts of 85 or higher build a combo. Free in the browser."
+    />
+    <meta name="twitter:url" content="https://5050cut.com/" />
+    <meta name="twitter:image" content="https://5050cut.com/assets/env/fruit_stall.jpg" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
     <script type="importmap">
       {
         "imports": {
-          "three": "./vendor/three.module.js"
+          "three": "/vendor/three.module.js"
         }
       }
     </script>
   </head>
   <body>
-    <canvas id="scene"></canvas>
-    <canvas id="game"></canvas>
-    <div id="boot-load" aria-live="polite">
-      <p id="boot-load-title">对半切</p>
-      <p id="boot-load-text">摆桌子…</p>
-      <div id="boot-load-track">
-        <div id="boot-load-bar"></div>
+    <div id="stage">
+      <canvas id="scene"></canvas>
+      <canvas id="game"></canvas>
+      <div id="boot-load" aria-live="polite">
+        <p id="boot-load-title">对半切</p>
+        <p id="boot-load-text">摆桌子…</p>
+        <div id="boot-load-track">
+          <div id="boot-load-bar"></div>
+        </div>
+        <p id="boot-blurb">
+          Swipe through the center to cut an object in half. The closer the slice is to the middle, the higher you score.
+        </p>
       </div>
     </div>
+    <main id="about">
+      <h1>50/50 Cut</h1>
+      <p>
+        Swipe through the center of the object to cut it in half. If the middle is hard to judge, drag the pad on the right to turn the object, then cut.
+      </p>
+      <p>
+        A slice through the exact center scores 100. The farther the cut sits from the middle, the lower the score, and a cut too far off center scores nothing. Cuts of 85 or higher keep a combo going, and each extra cut in that combo is worth a little more. Fill the album as you go, and climb the board.
+      </p>
+    </main>
     <script>
       window.addEventListener("error", function (event) {
         if (document.getElementById("boot-error")) return;
@@ -47,6 +82,6 @@
     <script>
       window.ASSET_BASE = window.ASSET_BASE || "";
     </script>
-    <script type="module" src="src/main.js?v=106"></script>
+    <script type="module" src="/src/main.js?v=106"></script>
   </body>
 </html>

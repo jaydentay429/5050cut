@@ -9,9 +9,16 @@
 html,
 body {
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  margin: 0;
   background: #1c1712;
+}
+
+#stage {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
@@ -24,6 +31,7 @@ body {
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -73,4 +81,40 @@ body {
   width: 0;
   height: 100%;
   background: #e07a3d;
+}
+
+#boot-blurb {
+  max-width: 22rem;
+  margin: 8px 0 0;
+  padding: 0 24px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(243, 230, 208, 0.82);
+}
+
+#about {
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+  color: #f3e6d0;
+  font-family: "PingFang TC", "Noto Sans TC", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+}
+
+#about h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+
+#about p {
+  font-size: 1rem;
+  line-height: 1.55;
+  margin-bottom: 14px;
+  color: rgba(243, 230, 208, 0.88);
+}
+
+#about p:last-child {
+  margin-bottom: 0;
 }
