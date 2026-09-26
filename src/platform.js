@@ -1,8 +1,8 @@
 /**
  * 门户 / 广告 / 排行。SDK 只进这一文件。
  */
-import { showInterstitial, showRewarded } from "./ads.js?v=4";
-import { loadBoardProfile, saveBoardProfile, submitBoardScore } from "./board.js?v=6";
+import { showInterstitial, showRewarded } from "./ads.js?v=5";
+import { loadBoardProfile, saveBoardProfile, submitBoardScore } from "./board.js?v=7";
 
 export function onGameStart() {
   // sdk.gameplayStart()

@@ -1,5 +1,5 @@
 /** 所有可调数值集中放这里，后续打磨手感只改这一份。 */
-import { catalogSpec, themeBlock } from "./worlds.js?v=101";
+import { catalogSpec, themeBlock } from "./worlds.js?v=102";
 
 export const CONFIG = {
   backgroundColor: "#1c1712",

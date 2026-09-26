@@ -1,5 +1,5 @@
-import { CONFIG } from "./config.js?v=104";
-import { achieveHint, achieveTitle, getLang, t, themeName, titleIdFromStored, typeLabel } from "./i18n.js?v=138";
+import { CONFIG } from "./config.js?v=105";
+import { achieveHint, achieveTitle, getLang, t, themeName, titleIdFromStored, typeLabel } from "./i18n.js?v=139";
 
 const TROPHY_CHIP = {
   none: { fill: "rgba(16, 12, 9, 0.45)", text: "rgba(243, 230, 208, 0.55)", stroke: "rgba(243, 230, 208, 0.28)" },
