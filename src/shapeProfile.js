@@ -2,9 +2,9 @@
  * 沿长轴 t∈[0,1] 的半径轮廓。体积积分和旋转体网格共用这一份。
  */
 
-import { CONFIG } from "./config.js?v=100";
-import { boxTypeSet, getItem } from "./worlds.js?v=99";
-import { fruitRestSize, fruitRestSpan } from "./fruitAssets.js?v=102";
+import { CONFIG } from "./config.js?v=104";
+import { boxTypeSet, getItem } from "./worlds.js?v=101";
+import { fruitModelScale, fruitRestSize } from "./fruitAssets.js?v=115";
 
 export function axisLength(type, requested) {
   const item = getItem(type);
@@ -205,8 +205,7 @@ export function maxRadius(type, length) {
  */
 export function objectHeight(type, length) {
   const rest = fruitRestSize(type);
-  const span = fruitRestSpan(type);
-  if (rest && span) return length * (rest.y / span);
+  if (rest) return rest.y * fruitModelScale(type, length);
   const item = getItem(type);
   const spec = CONFIG.catalog[type] || {};
   if (item.height != null) return item.height;

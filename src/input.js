@@ -19,7 +19,9 @@ export function attachInput(canvas, handlers) {
 
     activePointerId = event.pointerId;
     try {
-      canvas.setPointerCapture(event.pointerId);
+      if (!document.body.classList.contains("overlay-open")) {
+        canvas.setPointerCapture(event.pointerId);
+      }
     } catch {
       // 部分环境没有 capture，松开时仍会收到 pointerup
     }

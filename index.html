@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <title>50/50 Cut — Slice through the center</title>
     <meta
@@ -29,7 +29,15 @@
     <meta name="twitter:url" content="https://5050cut.com/" />
     <meta name="twitter:image" content="https://5050cut.com/assets/env/fruit_stall.jpg" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/style.css?v=8" />
+    <link rel="preload" href="/vendor/draco/draco_decoder.wasm" as="fetch" crossorigin />
+    <link rel="preload" href="/assets/models/fruit/apple/apple.glb" as="fetch" crossorigin />
+    <script
+      async
+      id="adsbygoogle-js"
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6491556738882383"
+      crossorigin="anonymous"
+    ></script>
     <script type="importmap">
       {
         "imports": {
@@ -49,7 +57,7 @@
           <div id="boot-load-bar"></div>
         </div>
         <p id="boot-blurb">
-          Swipe through the center to cut an object in half. The closer the slice is to the middle, the higher you score.
+          Swipe through the center to cut an object in half. A centered cut scores 100, and cuts of 85 or higher build a combo.
         </p>
       </div>
     </div>
@@ -81,7 +89,47 @@
     </script>
     <script>
       window.ASSET_BASE = window.ASSET_BASE || "";
+      window.AD_CLIENT = "ca-pub-6491556738882383";
+      window.adsbygoogle = window.adsbygoogle || [];
+      if (typeof window.adBreak !== "function") {
+        window.adBreak = window.adConfig = function (o) {
+          window.adsbygoogle.push(o);
+        };
+      }
     </script>
-    <script type="module" src="/src/main.js?v=106"></script>
+    <div id="board-title" hidden>
+      <div class="ad-consent-card board-title-card">
+        <p class="ad-consent-title" data-i18n="titleHead">排行榜头衔</p>
+        <p class="ad-consent-body" data-i18n="titleBody">
+          选一个已解锁的成就名，会出现在排行榜你的昵称下面。
+        </p>
+        <p class="ad-consent-body" data-title-empty data-i18n="titleEmpty" hidden>还没有解锁成就，先去切几刀。</p>
+        <div class="board-title-list" data-title-list></div>
+        <button type="button" class="ghost" data-title-none data-i18n="titleNone">不展示</button>
+        <button type="button" class="ghost" data-title-cancel data-i18n="cancel">取消</button>
+      </div>
+    </div>
+    <div id="board-name" hidden>
+      <form class="ad-consent-card" data-name-form>
+        <p class="ad-consent-title" data-i18n="nickTitle">排行榜昵称</p>
+        <p class="ad-consent-body" data-name-hint data-i18n="nickBody">
+          只记在这台设备的浏览器里。换手机或清缓存就是新账号。
+        </p>
+        <label class="board-name-label" for="board-name-input" data-i18n="nickLabel">昵称</label>
+        <input
+          id="board-name-input"
+          type="text"
+          maxlength="12"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          enterkeyhint="done"
+          spellcheck="false"
+        />
+        <button type="submit" data-name-save data-i18n="nickSave">保存</button>
+        <button type="button" class="ghost" data-name-cancel data-i18n="cancel">取消</button>
+      </form>
+    </div>
+    <script type="module" src="/src/main.js?v=138"></script>
   </body>
 </html>

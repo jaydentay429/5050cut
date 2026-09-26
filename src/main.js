@@ -2,12 +2,13 @@
  * 入口：创建 Canvas / WebGL、处理窗口尺寸、驱动游戏循环。
  * 浏览器专属 API（window / document / canvas）集中在这一文件、input.js 和 audio.js。
  */
-import { Game } from "./game.js?v=105";
-import { attachInput } from "./input.js?v=78";
-import { catalogTypes } from "./object.js?v=70";
-import { preloadFruitAssets } from "./fruitAssets.js?v=102";
-import { createScene } from "./scene.js?v=81";
-import { CONFIG } from "./config.js?v=100";
+import { Game } from "./game.js?v=138";
+import { attachInput } from "./input.js?v=79";
+import { catalogTypes } from "./object.js?v=75";
+import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=115";
+import { createScene } from "./scene.js?v=96";
+import { CONFIG } from "./config.js?v=109";
+import { t } from "./i18n.js?v=138";
 
 const sceneCanvas = document.getElementById("scene");
 const uiCanvas = document.getElementById("game");
@@ -36,7 +37,7 @@ function isLocalPreview() {
 
 async function boot() {
   const scene = createScene(sceneCanvas);
-  setLoad(0.02, "准备桌子");
+  setLoad(0.02, t("bootPrep"));
   await preloadFruitAssets(scene.renderer, ({ ratio, label }) => setLoad(0.05 + ratio * 0.9, label));
   scene.setEnvironment();
   const game = new Game(scene);
@@ -45,8 +46,9 @@ async function boot() {
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.scene.maxPixelRatio ?? 1.5);
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const vv = window.visualViewport;
+    const width = Math.round(vv?.width || window.innerWidth);
+    const height = Math.round(vv?.height || window.innerHeight);
 
     uiCanvas.width = Math.floor(width * dpr);
     uiCanvas.height = Math.floor(height * dpr);
@@ -80,6 +82,7 @@ async function boot() {
 
   window.addEventListener("resize", resize);
   window.addEventListener("orientationchange", resize);
+  window.visualViewport?.addEventListener("resize", resize);
   document.addEventListener("visibilitychange", () => {
     game.setSuspended(document.hidden);
   });
@@ -103,10 +106,11 @@ async function boot() {
     }
   }
   hideLoad();
+  prefetchTheme("fruit");
   requestAnimationFrame(loop);
 }
 
 boot().catch((err) => {
   console.error(err);
-  if (loadText) loadText.textContent = "加载失败，请刷新";
+  if (loadText) loadText.textContent = t("bootFail");
 });

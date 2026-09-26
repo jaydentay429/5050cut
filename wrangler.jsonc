@@ -1,5 +1,13 @@
 {
   "name": "precise-cut",
   "compatibility_date": "2026-09-25",
-  "pages_build_output_dir": "dist"
+  "pages_build_output_dir": "dist",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "precise-cut-board",
+      "database_id": "c22bb49b-7b43-4a42-bd73-412027ee4d44",
+      "preview_database_id": "DB"
+    }
+  ]
 }

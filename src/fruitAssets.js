@@ -5,24 +5,55 @@ import * as THREE from "three";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { DRACOLoader } from "../vendor/DRACOLoader.js";
 import { RGBELoader } from "../vendor/RGBELoader.js";
-import { CONFIG } from "./config.js?v=100";
+import { CONFIG } from "./config.js?v=109";
+import { t } from "./i18n.js?v=138";
 import { assetUrl } from "./assetUrl.js?v=91";
-import { getItem, WORLD_BACKDROP, WORLDS } from "./worlds.js?v=99";
+import { getItem, WORLD_BACKDROP, WORLDS } from "./worlds.js?v=101";
 
 export const FRUIT_TYPES = [...WORLDS.fruit.objects];
 
-const MODEL_CACHE = "v=35";
+const MODEL_CACHE = "v=37";
+const MAX_LIVE_MODELS = 6;
+const PROXY_TRIS = 5000;
 const models = {};
 const loading = {};
 const slices = {};
+const recency = [];
 let envMap = null;
 let stallMap = null;
 let woodMap = null;
 const worldMaps = {};
 let gltfLoader = null;
+let dracoLoader = null;
 let gpuRenderer = null;
 const warmedThemes = new Set();
-let warmupChain = Promise.resolve();
+let prefetchQueue = Promise.resolve();
+
+export function prefetchTheme(themeId, extra = 0) {
+  prefetchQueue = prefetchQueue.then(() => runPrefetch(themeId, extra)).catch(() => {});
+  return prefetchQueue;
+}
+
+async function runPrefetch(themeId, extra = 0) {
+  const types = [...(WORLDS[themeId]?.objects || [])];
+  const cap = extra || 1;
+  const jobs = types.filter((type) => getItem(type)?.model && !models[type] && !loading[type]).slice(0, cap);
+  for (const type of jobs) await ensureFruitModel(type);
+}
+
+function isCoarse() {
+  return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)")?.matches;
+}
+
+function ensureLoader() {
+  if (gltfLoader) return gltfLoader;
+  dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath(new URL("../vendor/draco/", import.meta.url).href);
+  dracoLoader.preload();
+  gltfLoader = new GLTFLoader();
+  gltfLoader.setDRACOLoader(dracoLoader);
+  return gltfLoader;
+}
 
 export function isFruitType(type) {
   return FRUIT_TYPES.includes(type);
@@ -36,11 +67,34 @@ function saneAxis(n) {
   return Number.isFinite(n) && n > 1e-4 && n < 8 ? n : 1;
 }
 
-/** 对照苹果用「中间那条边」：细长物体按粗细，不按最长边硬拉成苹果那么长。 */
 export function restMedian(size) {
   if (!size) return 0.05;
   const mid = [saneAxis(size.x), saneAxis(size.y), saneAxis(size.z)].sort((a, b) => a - b)[1];
   return Math.max(0.05, mid);
+}
+
+export function restLongest(size) {
+  if (!size) return 0.05;
+  return Math.max(0.05, saneAxis(size.x), saneAxis(size.y), saneAxis(size.z));
+}
+
+/** 对照苹果用中间边（粗细）；最长边超过上限就按上限收，避免细长物体撑满镜头。 */
+export function fruitModelScale(type, length) {
+  const size = fruitRestSize(type);
+  if (!size) return 1;
+  const appleWorld = CONFIG.scene.fruitAppleLength ?? 0.68;
+  const lo = CONFIG.scene.fruitScaleMin ?? 0.3;
+  const hi = CONFIG.scene.fruitScaleMax ?? 2.75;
+  const rel = Math.min(hi, Math.max(lo, getItem(type).realScale ?? 1));
+  const full = appleWorld * rel;
+  const shrink = full > 1e-8 ? (length || full) / full : 1;
+  const k = Math.max(0.25, shrink);
+  const med = restMedian(size);
+  const longest = restLongest(size);
+  let scale = (full * k) / med;
+  const cap = appleWorld * hi * k;
+  if (longest * scale > cap) scale = cap / longest;
+  return scale;
 }
 
 export function fruitRestSpan(type) {
@@ -91,29 +145,42 @@ function uploadModelGpu(root) {
   });
 }
 
-function yieldFrame() {
-  return new Promise((resolve) => {
-    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => resolve());
-    else setTimeout(resolve, 0);
-  });
+export function isModelReady(type) {
+  return Boolean(models[type]);
+}
+
+export async function ensureFruitSlice(type) {
+  const item = getItem(type);
+  if (!item?.slice || item.flesh || slices[type]) return slices[type] || null;
+  try {
+    const map = await new THREE.TextureLoader().loadAsync(assetUrl(item.slice));
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.anisotropy = isCoarse() ? 1 : 4;
+    uploadTexture(map);
+    slices[type] = map;
+  } catch (err) {
+    console.warn("fruit slice failed", type, err);
+  }
+  return slices[type] || null;
 }
 
 export async function ensureFruitModel(type) {
   const item = getItem(type);
   if (!item?.model) return null;
-  if (models[type]) return models[type];
+  if (models[type]) {
+    if (item.slice && !item.flesh && !slices[type]) ensureFruitSlice(type);
+    return models[type];
+  }
   if (!loading[type]) {
-    if (!gltfLoader) {
-      const draco = new DRACOLoader();
-      draco.setDecoderPath(new URL("../vendor/draco/", import.meta.url).href);
-      gltfLoader = new GLTFLoader();
-      gltfLoader.setDRACOLoader(draco);
-    }
-    loading[type] = gltfLoader
-      .loadAsync(`${assetUrl(item.model)}?${MODEL_CACHE}`)
-      .then((gltf) => {
+    ensureLoader();
+    loading[type] = Promise.all([
+      gltfLoader.loadAsync(`${assetUrl(item.model)}?${MODEL_CACHE}`),
+      item.slice && !item.flesh ? ensureFruitSlice(type) : Promise.resolve(null),
+    ])
+      .then(([gltf]) => {
         models[type] = normalizeFruitRoot(gltf.scene, item);
         uploadModelGpu(models[type]);
+        noteLoaded(type);
         return models[type];
       })
       .catch((err) => {
@@ -145,107 +212,57 @@ export async function ensureWorldBackdrop(themeId) {
   }
 }
 
-/** 空闲时只解下一件，避免一摊十个 GLB 把主线程卡死。 */
+/** 后台并行预热，不挡住当前要切的那一件。 */
 export function warmupModel(type) {
-  if (!type || models[type] || loading[type]) return warmupChain;
-  warmupChain = warmupChain.then(async () => {
-    try {
-      await ensureFruitModel(type);
-    } catch {
-      /* 单个失败不阻断预热 */
-    }
-    await yieldFrame();
-  });
-  return warmupChain;
+  if (!type || models[type] || loading[type]) return Promise.resolve(models[type] || null);
+  return ensureFruitModel(type);
 }
 
-/** 空闲时预热当前摊 + 摊图。不一次拉完全部模型。 */
-export function warmupThemeModels(themeId) {
-  if (!themeId || warmedThemes.has(themeId)) return warmupChain;
+export async function warmupThemeModels(themeId) {
+  if (!themeId || warmedThemes.has(themeId)) return;
   warmedThemes.add(themeId);
-  warmupChain = warmupChain.then(async () => {
-    await ensureWorldBackdrop(themeId);
-    const types = WORLDS[themeId]?.objects || [];
-    for (const type of types) {
-      try {
-        await ensureFruitModel(type);
-      } catch {
-        /* 单个失败不阻断预热 */
-      }
-      await yieldFrame();
-    }
-  });
-  return warmupChain;
+  await ensureWorldBackdrop(themeId);
+  await prefetchTheme(themeId, 1);
 }
 
 export async function preloadFruitAssets(renderer, onProgress) {
   gpuRenderer = renderer || null;
-  const texLoader = new THREE.TextureLoader();
-  const jobs = [];
-  FRUIT_TYPES.forEach((type) => {
-    const item = getItem(type);
-    if (item.slice && !item.flesh) jobs.push({ kind: "slice", type, file: item.slice });
-  });
-  jobs.push({ kind: "hdr" });
-  jobs.push({ kind: "world", id: "fruit", file: WORLD_BACKDROP.fruit });
-  jobs.push({ kind: "wood" });
-  jobs.push({ kind: "apple" });
-  let done = 0;
-  const total = jobs.length;
-  const tick = (label) => {
-    done += 1;
-    onProgress?.({ ratio: done / total, label });
-  };
-
-  await Promise.all(
-    FRUIT_TYPES.map(async (type) => {
-      const item = getItem(type);
-      if (item.slice && !item.flesh) {
-        try {
-          const map = await texLoader.loadAsync(assetUrl(item.slice));
-          map.colorSpace = THREE.SRGBColorSpace;
-          map.anisotropy = 8;
-          uploadTexture(map);
-          slices[type] = map;
-        } catch (err) {
-          console.warn("fruit slice failed", type, err);
-        }
-        tick("切开贴图");
-      }
-    }),
-  );
-
-  try {
-    const hdr = await new RGBELoader().loadAsync(assetUrl("assets/env/abandoned_greenhouse_1k.hdr"));
-    hdr.mapping = THREE.EquirectangularReflectionMapping;
-    if (renderer) {
-      const pmrem = new THREE.PMREMGenerator(renderer);
-      envMap = pmrem.fromEquirectangular(hdr).texture;
-      hdr.dispose();
-      pmrem.dispose();
-    } else {
-      envMap = hdr;
-    }
-  } catch (err) {
-    console.warn("fruit env failed", err);
-  }
-  tick("灯光");
-
+  ensureLoader();
+  onProgress?.({ ratio: 0.08, label: t("decoder") });
   await ensureWorldBackdrop("fruit");
-  tick("摊位");
+  onProgress?.({ ratio: 0.35, label: t("stall") });
+
+  const coarse = isCoarse();
+  if (!coarse) {
+    try {
+      const hdr = await new RGBELoader().loadAsync(assetUrl("assets/env/abandoned_greenhouse_1k.hdr"));
+      hdr.mapping = THREE.EquirectangularReflectionMapping;
+      if (renderer) {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        envMap = pmrem.fromEquirectangular(hdr).texture;
+        hdr.dispose();
+        pmrem.dispose();
+      } else {
+        envMap = hdr;
+      }
+    } catch (err) {
+      console.warn("fruit env failed", err);
+    }
+  }
+  onProgress?.({ ratio: 0.55, label: t("lights") });
   try {
-    woodMap = await texLoader.loadAsync(assetUrl("assets/env/wood_table_diff_1k.jpg"));
+    woodMap = await new THREE.TextureLoader().loadAsync(assetUrl("assets/env/wood_table_diff_1k.jpg"));
     woodMap.colorSpace = THREE.SRGBColorSpace;
     woodMap.wrapS = THREE.RepeatWrapping;
     woodMap.wrapT = THREE.RepeatWrapping;
     woodMap.repeat.set(2.2, 1.4);
-    woodMap.anisotropy = 8;
+    woodMap.anisotropy = coarse ? 1 : 4;
   } catch (err) {
     console.warn("wood board failed", err);
   }
-  tick("桌面");
+  onProgress?.({ ratio: 0.75, label: t("table") });
   await ensureFruitModel("apple");
-  tick("苹果");
+  onProgress?.({ ratio: 0.92, label: t("appleBoot") });
   if (woodMap) uploadTexture(woodMap);
 }
 
@@ -253,22 +270,23 @@ export function cloneFruitModel(type, length) {
   const src = models[type];
   if (!src) return null;
   const clone = src.clone(true);
-  const size = src.userData.restSize;
-  const span = restMedian(size);
-  const appleWorld = CONFIG.scene.fruitAppleLength ?? 0.68;
-  const lo = CONFIG.scene.fruitScaleMin ?? 0.3;
-  const hi = CONFIG.scene.fruitScaleMax ?? 2.75;
-  const rel = Math.min(hi, Math.max(lo, getItem(type).realScale ?? 1));
-  const full = appleWorld * rel;
-  const shrink = full > 1e-8 ? length / full : 1;
-  clone.scale.setScalar((full * Math.max(0.25, shrink)) / span);
+  clone.scale.setScalar(fruitModelScale(type, length));
+  let shadowSlots = 0;
   clone.traverse((node) => {
     if (!node.isMesh) return;
-    node.castShadow = true;
-    node.receiveShadow = true;
+    if (node.userData.cutProxy) {
+      node.visible = false;
+      node.castShadow = false;
+      node.receiveShadow = false;
+      return;
+    }
+    shadowSlots += 1;
+    node.castShadow = shadowSlots <= 4;
+    node.receiveShadow = shadowSlots <= 2;
     const mats = [].concat(node.material);
     const copies = mats.map((mat) => {
       const copy = mat.clone();
+      copy.userData = { ...(copy.userData || {}), spawnClone: true };
       const item = getItem(type);
       if (envMap) {
         copy.envMap = envMap;
@@ -298,10 +316,121 @@ export function cloneFruitModel(type, length) {
   return clone;
 }
 
-function boxVolume(mesh) {
-  const box = new THREE.Box3().setFromObject(mesh);
-  const size = box.getSize(new THREE.Vector3());
-  return Math.max(1e-8, size.x * size.y * size.z);
+export function disposeCachedModel(type) {
+  const root = models[type];
+  delete models[type];
+  delete loading[type];
+  const idx = recency.indexOf(type);
+  if (idx >= 0) recency.splice(idx, 1);
+  if (!root) return;
+  const geos = new Set();
+  const mats = new Set();
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    if (node.geometry) geos.add(node.geometry);
+    for (const mat of [].concat(node.material)) {
+      if (mat) mats.add(mat);
+    }
+  });
+  for (const geo of geos) geo.dispose();
+  for (const mat of mats) {
+    mat.envMap = null;
+    mat.dispose();
+  }
+}
+
+function pruneLiveModels(preferType) {
+  const types = Object.keys(models);
+  if (types.length <= MAX_LIVE_MODELS) return;
+  const drop = types.filter((t) => t !== "apple" && t !== preferType);
+  drop.sort((a, b) => recency.indexOf(a) - recency.indexOf(b));
+  while (Object.keys(models).length > MAX_LIVE_MODELS && drop.length) {
+    disposeCachedModel(drop.shift());
+  }
+}
+
+function noteLoaded(type) {
+  const i = recency.indexOf(type);
+  if (i >= 0) recency.splice(i, 1);
+  recency.push(type);
+  pruneLiveModels(type);
+}
+
+export function retainPlayModels(currentThemeId, nextThemeId, holdingType) {
+  const allow = new Set(["apple"]);
+  if (holdingType) allow.add(holdingType);
+  for (const id of [currentThemeId, nextThemeId]) {
+    for (const t of WORLDS[id]?.objects || []) allow.add(t);
+  }
+  for (const t of Object.keys(models)) {
+    if (!allow.has(t)) disposeCachedModel(t);
+  }
+  pruneLiveModels(holdingType);
+}
+
+export function retainMenuModels() {
+  for (const t of Object.keys(models)) {
+    if (t !== "apple") disposeCachedModel(t);
+  }
+}
+
+function attachCutProxy(root) {
+  root.updateWorldMatrix(true, true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const meshes = [];
+  let triTotal = 0;
+  root.traverse((node) => {
+    if (!node.isMesh || node.userData.cutProxy || !node.geometry?.attributes?.position) return;
+    const pos = node.geometry.attributes.position;
+    const idx = node.geometry.index;
+    const n = idx ? idx.count / 3 : pos.count / 3;
+    meshes.push({ node, pos, idx, n });
+    triTotal += n;
+  });
+  if (!triTotal) return;
+  const step = Math.max(1, Math.ceil(triTotal / PROXY_TRIS));
+  const packed = [];
+  const toRoot = (out, node, i, attr) => {
+    out.fromBufferAttribute(attr, i);
+    out.applyMatrix4(node.matrixWorld);
+    out.applyMatrix4(inv);
+  };
+  const emit = (mesh, t) => {
+    let i0;
+    let i1;
+    let i2;
+    if (mesh.idx) {
+      const i = t * 3;
+      i0 = mesh.idx.getX(i);
+      i1 = mesh.idx.getX(i + 1);
+      i2 = mesh.idx.getX(i + 2);
+    } else {
+      i0 = t * 3;
+      i1 = t * 3 + 1;
+      i2 = t * 3 + 2;
+    }
+    toRoot(a, mesh.node, i0, mesh.pos);
+    toRoot(b, mesh.node, i1, mesh.pos);
+    toRoot(c, mesh.node, i2, mesh.pos);
+    packed.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  };
+  for (const mesh of meshes) {
+    for (let t = 0; t < mesh.n; t += step) emit(mesh, t);
+  }
+  if (packed.length < 9) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(packed, 3));
+  geo.userData.shared = true;
+  const proxy = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false }));
+  proxy.visible = false;
+  proxy.frustumCulled = false;
+  proxy.castShadow = false;
+  proxy.receiveShadow = false;
+  proxy.userData.cutProxy = true;
+  root.add(proxy);
 }
 
 function normalizeFruitRoot(scene, item) {
@@ -309,19 +438,13 @@ function normalizeFruitRoot(scene, item) {
   if (item.modelPick) {
     const found = scene.getObjectByName(item.modelPick);
     if (found) source = found;
-  } else if (!item.keepRoot) {
-    const meshes = [];
-    scene.traverse((node) => {
-      if (node.isMesh) meshes.push(node);
-    });
-    if (meshes.length > 2) {
-      meshes.sort((a, b) => boxVolume(b) - boxVolume(a));
-      source = meshes[1] || meshes[0];
-    }
   }
 
   const wrap = new THREE.Group();
   wrap.add(source.clone(true));
+  wrap.traverse((node) => {
+    if (node.isMesh && node.geometry) node.geometry.userData.shared = true;
+  });
   if (!item.keepUpright) alignLongestToX(wrap);
   const faceYaw = item.faceYaw ?? -Math.PI / 2;
   wrap.rotation.y = faceYaw;
@@ -330,8 +453,15 @@ function normalizeFruitRoot(scene, item) {
   wrap.position.sub(box.getCenter(new THREE.Vector3()));
   wrap.updateMatrixWorld(true);
   const size = new THREE.Box3().setFromObject(wrap).getSize(new THREE.Vector3());
-  if (Math.max(size.x, size.y, size.z) > 8) size.set(1, 1, 1);
+  const mx = Math.max(size.x, size.y, size.z);
+  if (!Number.isFinite(mx) || mx < 1e-4) size.set(1, 1, 1);
+  else if (mx > 8) {
+    wrap.scale.multiplyScalar(1 / mx);
+    wrap.updateMatrixWorld(true);
+    new THREE.Box3().setFromObject(wrap).getSize(size);
+  }
   wrap.userData.restSize = size.clone();
+  attachCutProxy(wrap);
   wrap.traverse((node) => {
     if (!node.isMesh) return;
     node.castShadow = true;

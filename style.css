@@ -9,19 +9,41 @@
 html,
 body {
   width: 100%;
+  height: 100%;
   margin: 0;
+  overflow: hidden;
   background: #1c1712;
+  overscroll-behavior: none;
+}
+
+html[data-lang="zh-Hans"] {
+  font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+}
+
+html[data-lang="zh-Hant"] {
+  font-family: inherit;
+}
+
+html[data-lang="en"] {
+  font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
 }
 
 #stage {
-  position: relative;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
 }
 
 #scene,
@@ -56,7 +78,7 @@ body {
   gap: 12px;
   background: #1c1712;
   color: #f3e6d0;
-  font-family: "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+  font-family: inherit;
 }
 
 #boot-load-title {
@@ -94,11 +116,17 @@ body {
 }
 
 #about {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 0;
   max-width: 38rem;
   margin: 0 auto;
   padding: 32px 20px 64px;
   color: #f3e6d0;
   font-family: "PingFang TC", "Noto Sans TC", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  pointer-events: none;
 }
 
 #about h1 {
@@ -117,4 +145,148 @@ body {
 
 #about p:last-child {
   margin-bottom: 0;
+}
+
+body.overlay-open {
+  touch-action: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+body.overlay-open #scene,
+body.overlay-open #game {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#ad-consent,
+#board-name,
+#board-title {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+  background: rgba(12, 9, 7, 0.45);
+  font-family: inherit;
+  touch-action: auto;
+  pointer-events: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+#ad-consent[hidden],
+#board-name[hidden],
+#board-title[hidden] {
+  display: none;
+}
+
+.ad-consent-card {
+  width: min(420px, 100%);
+  margin: 0;
+  background: #2a1c12;
+  color: #f3e6d0;
+  border: 1px solid rgba(243, 230, 208, 0.22);
+  border-radius: 18px;
+  padding: 18px 16px 16px;
+}
+
+.ad-consent-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.ad-consent-body {
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.85;
+  margin-bottom: 14px;
+}
+
+.ad-consent-body.is-error {
+  color: #ffb4a4;
+  opacity: 1;
+}
+
+#board-name,
+#board-title {
+  align-items: center;
+}
+
+#ad-consent button,
+#board-name button,
+#board-title button {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #e07a3d;
+  color: #2a1c12;
+  font-size: 16px;
+  font-weight: 800;
+  margin-top: 8px;
+}
+
+#ad-consent button.ghost,
+#board-name button.ghost,
+#board-title button.ghost {
+  background: transparent;
+  color: #f3e6d0;
+  border: 1px solid rgba(243, 230, 208, 0.45);
+}
+
+.board-name-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+
+#board-name-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(243, 230, 208, 0.35);
+  background: rgba(12, 9, 7, 0.45);
+  color: #f3e6d0;
+  font-size: 16px;
+  padding: 0 12px;
+  outline: none;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+#board-name-input:focus {
+  border-color: #e07a3d;
+}
+
+.board-title-card {
+  max-height: min(86vh, 640px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.board-title-list {
+  max-height: min(42vh, 320px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.board-title-list button {
+  margin-top: 0;
+}
+
+.board-title-list button.on {
+  box-shadow: inset 0 0 0 2px #f3e6d0;
 }

@@ -1,3 +1,4 @@
+import { t } from "./i18n.js?v=138";
 import { CONFIG } from "./config.js";
 
 export function createScoreState() {
@@ -17,28 +18,28 @@ export function scoreFromDeviation(deviation) {
 }
 
 export function gradeFromScore(baseScore) {
-  if (baseScore >= CONFIG.score.perfectScore) return "精准！";
-  if (baseScore >= CONFIG.score.comboMinScore) return "漂亮";
-  if (baseScore >= 70) return "还行";
-  if (baseScore > 0) return "偏了";
-  return "没切中";
+  if (baseScore >= CONFIG.score.perfectScore) return t("gradePerfect");
+  if (baseScore >= CONFIG.score.comboMinScore) return t("gradeNice");
+  if (baseScore >= 70) return t("gradeOk");
+  if (baseScore > 0) return t("gradeOff");
+  return t("gradeMiss");
 }
 
 export function rankFromRun(maxCombo, bestCut) {
-  if (maxCombo >= 20 || (maxCombo >= 12 && bestCut >= 99)) return "传说";
-  if (maxCombo >= 12) return "宗师";
-  if (maxCombo >= 8 || bestCut >= 99) return "神刀";
-  if (maxCombo >= 4) return "刀客";
-  if (maxCombo >= 1) return "学徒";
-  return "新刀";
+  if (maxCombo >= 20 || (maxCombo >= 12 && bestCut >= 99)) return t("rankLegend");
+  if (maxCombo >= 12) return t("rankMaster");
+  if (maxCombo >= 8 || bestCut >= 99) return t("rankGod");
+  if (maxCombo >= 4) return t("rankGuest");
+  if (maxCombo >= 1) return t("rankPupil");
+  return t("newBlade");
 }
 
 export function comboTitle(combo) {
-  if (combo >= 16) return "刀神降临";
-  if (combo >= 12) return "停不下来";
-  if (combo >= 8) return "热刀";
-  if (combo >= 5) return "手感来了";
-  if (combo >= 3) return "连上了";
+  if (combo >= 16) return t("combo16");
+  if (combo >= 12) return t("combo12");
+  if (combo >= 8) return t("combo8");
+  if (combo >= 5) return t("combo5");
+  if (combo >= 3) return t("combo3");
   return "";
 }
 

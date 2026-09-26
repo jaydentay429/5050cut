@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { getItem, WORLDS } from "./worlds.js?v=99";
+import { getItem, WORLDS } from "./worlds.js?v=101";
 
 const SIZE = 512;
 

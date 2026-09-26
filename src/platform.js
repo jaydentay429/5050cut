@@ -1,7 +1,8 @@
 /**
- * 门户 SDK 挂钩。CrazyGames / Poki 之后只往这里填，不要散落到玩法代码里。
- * 现在全部是空实现，接 SDK 时保持函数签名即可。未点名上门户前不要接 live 广告。
+ * 门户 / 广告 / 排行。SDK 只进这一文件。
  */
+import { showInterstitial, showRewarded } from "./ads.js?v=4";
+import { loadBoardProfile, saveBoardProfile, submitBoardScore } from "./board.js?v=6";
 
 export function onGameStart() {
   // sdk.gameplayStart()
@@ -11,29 +12,42 @@ export function onGameEnd(_score) {
   // sdk.gameplayStop()
 }
 
-export function onShowAd(_reason) {
-  // 结算或返回菜单时的插屏。Basic Launch 阶段必须是空操作。
+export function onShowAd(reason) {
+  return showInterstitial(reason || "gameover");
 }
 
 export function onHappyTime() {
-  // CrazyGames: sdk.game.happytime()  破纪录、高连击
+  // CrazyGames: sdk.game.happytime()
 }
 
 export function onVisibility(_hidden) {
-  // 失焦 gameplayStop，回来 gameplayStart。游戏侧已暂停/静音。
+  // 失焦由游戏侧暂停 / 静音。
 }
 
-export function onShare(_channel) {
-  // 上门户后换成 SDK share。现在只记一次点击。
+export function onShare(_channel) {}
+
+export function onRewardedAd(done) {
+  showRewarded("shop_tokens")
+    .then((result) => done?.(result.status === "rewarded", result.status))
+    .catch(() => done?.(false, "error"));
 }
 
-export function onRewardedAd(_done) {
-  // 激励广告换代币。未上门户前不要接 live SDK。
-  // _done?.(true) 成功；现在直接失败。
-}
+export function submitCollectionScore(_score) {}
 
-export function submitCollectionScore(_score) {
-  // 真排行：CrazyGames 内置榜或点名的云存档。本地不要做假全球榜。
+export function submitRunScore(score) {
+  const n = Math.floor(Number(score) || 0);
+  if (n < 1) return Promise.resolve(null);
+  const profile = loadBoardProfile();
+  return submitBoardScore(profile, n)
+    .then((data) => {
+      if (data?.country) {
+        const latest = loadBoardProfile();
+        latest.country = data.country;
+        saveBoardProfile(latest);
+      }
+      return data;
+    })
+    .catch(() => null);
 }
 
 export function gameUrl() {
@@ -61,7 +75,7 @@ export function openShare(channel, { title, text, url }) {
       try {
         window.open(href, "_blank", "noopener,noreferrer");
       } catch {
-        // ignore
+        /* ignore */
       }
     });
     return;
@@ -69,6 +83,6 @@ export function openShare(channel, { title, text, url }) {
   try {
     window.open(href, "_blank", "noopener,noreferrer");
   } catch {
-    // ignore
+    /* ignore */
   }
 }
