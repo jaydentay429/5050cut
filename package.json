@@ -5,6 +5,7 @@
   "scripts": {
     "restore-glb": "node scripts/restore-glb.mjs",
     "compress-glb": "node scripts/compress-glb.mjs",
+    "simplify-glb": "node scripts/simplify-glb.mjs",
     "pack-pages": "node scripts/pack-pages.mjs",
     "deploy:pages": "node scripts/pack-pages.mjs && wrangler pages deploy dist --project-name precise-cut",
     "deploy:r2": "node scripts/upload-r2.mjs",

@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
-import { bananaRadiusAt, BOX_TYPES, maxRadius, objectHeight, radiusAt } from "./shapeProfile.js?v=69";
+import { bananaRadiusAt, BOX_TYPES, maxRadius, objectHeight, radiusAt } from "./shapeProfile.js?v=74";
 import { makeNoiseBump, makeOuterCapTexture, makeSideTexture, makeSliceTexture } from "./sliceFace.js";
-import { cloneFruitModel, fruitEnvMap, fruitRestSize, fruitRestSpan, fruitSliceMap, isFruitType } from "./fruitAssets.js?v=102";
-import { getItem } from "./worlds.js?v=99";
+import { cloneFruitModel, fruitEnvMap, fruitModelScale, fruitRestSize, fruitSliceMap, isFruitType } from "./fruitAssets.js?v=115";
+import { getItem } from "./worlds.js?v=101";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -36,9 +36,33 @@ function makeBodyMaterial(map, spec, type, bump, item) {
 export function createMaterials(type) {
   const item = getItem(type);
   const spec = CONFIG.catalog[type] || { roughness: 0.6 };
+  const sliceMap = item.flesh ? null : fruitSliceMap(type);
+
+  if (item.model) {
+    const face = new THREE.MeshPhysicalMaterial({
+      color: item.flesh || "#ffffff",
+      map: sliceMap,
+      roughness: item.flesh ? 0.46 : sliceMap ? 0.28 : 0.88,
+      metalness: 0,
+      clearcoat: item.flesh ? 0.22 : sliceMap ? 0.55 : 0,
+      clearcoatRoughness: item.flesh ? 0.5 : 0.32,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    });
+    if (fruitEnvMap()) {
+      face.envMap = fruitEnvMap();
+      face.envMapIntensity = 0.45;
+    }
+    const side = new THREE.MeshStandardMaterial({ color: item.tint || "#888888", roughness: spec.roughness ?? 0.6 });
+    const outer = new THREE.MeshStandardMaterial({ color: item.tint || "#888888", roughness: spec.roughness ?? 0.6 });
+    for (const mat of [side, face, outer]) mat.userData.persist = true;
+    return { side, face, outer, textures: [] };
+  }
+
   const sideMap = makeSideTexture(type);
   const outerMap = makeOuterCapTexture(type);
-  const sliceMap = item.flesh ? null : fruitSliceMap(type);
   const faceMap = sliceMap || (item.flesh ? null : makeSliceTexture(type));
   const bump = item.bumpy && !sliceMap && !item.flesh ? makeNoiseBump() : null;
 
@@ -62,6 +86,7 @@ export function createMaterials(type) {
   }
   const outer = makeBodyMaterial(outerMap, spec, type, bump, item);
   if (item.tint && !item.model) outer.color.set(item.tint);
+  for (const mat of [side, face, outer]) mat.userData.persist = true;
 
   return {
     side,
@@ -83,8 +108,7 @@ export function disposeMaterials(materials) {
 
 function objectDepth(type, length) {
   const rest = fruitRestSize(type);
-  const span = fruitRestSpan(type);
-  if (rest && span) return length * (rest.z / span);
+  if (rest) return rest.z * fruitModelScale(type, length);
   const item = getItem(type);
   const spec = CONFIG.catalog[type] || {};
   if (item.depth != null) return item.depth;

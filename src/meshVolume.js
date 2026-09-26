@@ -16,6 +16,17 @@ function packShare(left, right) {
   };
 }
 
+function walkCutMeshes(root, visit) {
+  const proxies = [];
+  const rest = [];
+  root.traverse((node) => {
+    if (!node.isMesh || !node.geometry?.attributes?.position) return;
+    if (node.userData.cutProxy) proxies.push(node);
+    else rest.push(node);
+  });
+  for (const node of proxies.length ? proxies : rest) visit(node);
+}
+
 export function volumeShareFromObject(root, nx, ny, nz, d) {
   if (!root) return null;
   const nlen = Math.hypot(nx, ny, nz) || 1;
@@ -32,8 +43,7 @@ export function volumeShareFromObject(root, nx, ny, nz, d) {
   let min = Infinity;
   let max = -Infinity;
 
-  root.traverse((node) => {
-    if (!node.isMesh || !node.geometry?.attributes?.position) return;
+  walkCutMeshes(root, (node) => {
     const pos = node.geometry.attributes.position;
     mat.multiplyMatrices(inv, node.matrixWorld);
     for (let i = 0; i < pos.count; i += 1) {

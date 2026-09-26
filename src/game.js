@@ -1,10 +1,10 @@
-import { CONFIG } from "./config.js?v=100";
-import { haptic, isMuted, play, tickMusic, toggleMuted, unlockAudio, setFocusMuted } from "./audio.js?v=64";
+import { CONFIG } from "./config.js?v=104";
+import { haptic, isMuted, play, tickMusic, toggleMuted, unlockAudio, setFocusMuted } from "./audio.js?v=66";
 import { evaluateCut } from "./cut.js";
-import { ensureFruitModel, ensureWorldBackdrop, warmupModel } from "./fruitAssets.js?v=102";
-import { displayLength, lengthForRound, pickObjectType, themeAt, themeIdForType, TYPE_LABELS, catalogTypes } from "./object.js?v=70";
-import { dailyThemeId, getItem } from "./worlds.js?v=99";
-import { volumeSharePlane } from "./volume.js?v=68";
+import { ensureFruitModel, ensureWorldBackdrop, isModelReady, prefetchTheme, retainMenuModels, retainPlayModels, warmupModel } from "./fruitAssets.js?v=115";
+import { displayLength, pickObjectType, themeAt, themeIdForType, catalogTypes } from "./object.js?v=75";
+import { dailyThemeId, getItem } from "./worlds.js?v=101";
+import { volumeSharePlane } from "./volume.js?v=73";
 import {
   applyCut,
   comboTitle,
@@ -13,16 +13,20 @@ import {
   rankFromRun,
   scoreFromDeviation,
 } from "./score.js";
-import { collectionScore, hasGrandTrophy, stallStars, stallTrophy, TROPHY_LABEL, unlockedStallIds } from "./progress.js";
-import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, renderUI } from "./ui.js?v=91";
-import { ACHIEVEMENTS, achievementSnapshot, pendingAchievements } from "./achievements.js?v=87";
+import { collectionScore, hasGrandTrophy, stallStars, stallTrophy, unlockedStallIds } from "./progress.js";
+import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=138";
+import { ACHIEVEMENTS, achievementSnapshot, pendingAchievements } from "./achievements.js?v=138";
 import { loadAchievements, loadCodex, loadEconomy, loadHighScore, saveAchievements, saveEconomy, saveHighScore, todayKey, unlockCodexEntry } from "./storage.js";
-import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onShowAd, onVisibility, openShare, submitCollectionScore } from "./platform.js?v=3";
+import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=11";
+import { adHooks, adsStatus, isAdBusy, noteMeaningfulRun, notePlayTime } from "./ads.js?v=4";
+import { fetchBoard, isBoardOverlayOpen, loadBoardProfile, promptBoardName, promptBoardTitle, saveBoardProfile } from "./board.js?v=7";
+import { achieveTitle, getLang, setLang, t, themeName, typeLabel } from "./i18n.js?v=138";
 
 const MENU = "menu";
 const CODEX = "codex";
 const SHOP = "shop";
 const ACHIEVE = "achieve";
+const BOARD = "board";
 const PLAYING = "playing";
 const FEEDBACK = "feedback";
 const GAMEOVER = "gameover";
@@ -92,6 +96,30 @@ export class Game {
     this.orbitPadLocked = null;
     this.cursor = "default";
     this.perfectRun = 0;
+    this.adLeaving = false;
+    this.adBusyUi = false;
+    this.itemLoading = false;
+    this.boardScope = "home";
+    this.boardRows = [];
+    this.boardMe = null;
+    this.boardCountry = "";
+    this.boardCountryName = "";
+    this.boardLoading = false;
+    this.boardError = "";
+    this.boardProfile = loadBoardProfile();
+    if (this.boardProfile.titleId && !this.achieve.unlocked[this.boardProfile.titleId]) {
+      this.boardProfile = { ...this.boardProfile, titleId: "" };
+      saveBoardProfile(this.boardProfile);
+    }
+    this.revokeUnearnedScoreUnlocks();
+    adHooks({
+      pause: () => {
+        this.adBusyUi = true;
+      },
+      resume: () => {
+        this.adBusyUi = false;
+      },
+    });
     this.flushAchievements();
   }
 
@@ -109,6 +137,26 @@ export class Game {
 
   persistAchieve() {
     saveAchievements(this.achieve);
+  }
+
+  revokeUnearnedScoreUnlocks() {
+    const snap = this.achieveSnapshot();
+    let tokens = 0;
+    for (const row of ACHIEVEMENTS) {
+      if (!row.id.startsWith("score_")) continue;
+      if (this.achieve.unlocked[row.id] && !row.test(snap)) {
+        delete this.achieve.unlocked[row.id];
+        tokens += row.tokens;
+      }
+    }
+    if (!tokens) return;
+    this.economy.tokens = Math.max(0, this.economy.tokens - tokens);
+    this.persistEconomy();
+    this.persistAchieve();
+    if (this.boardProfile.titleId && !this.achieve.unlocked[this.boardProfile.titleId]) {
+      this.boardProfile = { ...this.boardProfile, titleId: "" };
+      saveBoardProfile(this.boardProfile);
+    }
   }
 
   achieveSnapshot() {
@@ -145,7 +193,7 @@ export class Game {
       tokens += row.tokens;
     }
     this.persistAchieve();
-    const reason = fresh.length === 1 ? fresh[0].title : `成就 ×${fresh.length}`;
+    const reason = fresh.length === 1 ? achieveTitle(fresh[0].id) : t("achieveN", { n: fresh.length });
     this.grantTokens(tokens, reason);
     if (this.time > 0) play("record");
   }
@@ -180,7 +228,8 @@ export class Game {
   }
 
   buttons() {
-    return layoutButtons(this.width, this.height, this.state, this.muted, {
+    return mergePromptButtons(
+      layoutButtons(this.width, this.height, this.state, this.muted, {
       unlockedCount: this.unlockedCount(),
       catalogTotal: this.catalogTotal(),
       codexTheme: this.codexTheme,
@@ -198,12 +247,23 @@ export class Game {
       },
       shareTokens: CONFIG.economy.shareTokens,
       adTokens: CONFIG.economy.adTokens,
+      adsStatus: adsStatus(),
       pendingPrompt: this.prompt,
       fatalBreak: this.pendingGameOver,
       canRetry: Boolean(this.pendingGameOver && this.economy.inventory.retry > 0),
       canGuide: (this.state === PLAYING || this.state === FEEDBACK) && this.economy.inventory.guide > 0,
       canSummon: (this.state === PLAYING || this.state === FEEDBACK) && this.economy.inventory.summon > 0 && this.summonableTypes().length > 0,
-    });
+      boardScope: this.boardScope,
+      boardLoading: this.boardLoading,
+      boardName: this.boardProfile?.name || "",
+      boardTitle: achieveTitle(this.boardProfile?.titleId),
+      achieveList: ACHIEVEMENTS,
+      achieveUnlocked: this.achieve.unlocked,
+    }),
+      this.width,
+      this.height,
+      this.prompt,
+    );
   }
 
   summonableTypes() {
@@ -277,17 +337,18 @@ export class Game {
 
   async spawnObject(round = this.round) {
     const theme = themeAt(this.themeIndex);
-    const type = pickObjectType(theme.id, this.lastType, this.forcedType);
+    const preferReady = this.themeCuts < 2 || this.round === 0;
+    const type = pickObjectType(theme.id, this.lastType, this.forcedType, preferReady && isModelReady("apple"));
     this.forcedType = null;
     this.lastType = type;
-    const length =
-      this.state === MENU || this.state === CODEX
-        ? displayLength(type)
-        : lengthForRound(type, round, this.scoreState.combo, this.themeIndex);
+    const length = displayLength(type);
     this.objectLength = length;
     const token = ++this.spawnToken;
+    this.itemLoading = this.state === PLAYING;
     await this.readyModel(type);
     if (token !== this.spawnToken) return;
+    retainPlayModels(theme.id, themeAt(this.themeIndex + 1).id, type);
+    this.itemLoading = false;
     if (this.activeTheme !== theme.id) {
       this.scene.setTheme(theme.id);
       this.activeTheme = theme.id;
@@ -309,11 +370,15 @@ export class Game {
     if (this.state === PLAYING) {
       warmupModel(pickObjectType(theme.id, type));
       const nextStall = themeAt(this.themeIndex + 1).id;
-      if (nextStall !== theme.id) ensureWorldBackdrop(nextStall);
+      if (nextStall !== theme.id) {
+        ensureWorldBackdrop(nextStall);
+        prefetchTheme(nextStall);
+      }
     }
   }
 
   pointerDown(pos) {
+    if (isAdBusy() || this.adLeaving) return;
     unlockAudio();
     if (this.paused) {
       this.hoverPos = pos;
@@ -370,6 +435,7 @@ export class Game {
       return;
     }
     if (this.state === PLAYING) {
+      if (this.itemLoading) return;
       this.strokeStart = pos;
       this.strokeCurrent = pos;
       play("swipe");
@@ -455,6 +521,23 @@ export class Game {
 
   handleButton(id) {
     if (this.prompt) {
+      if (id === "lang-hans") {
+        play("button");
+        setLang("zh-Hans");
+        this.prompt = null;
+        return;
+      }
+      if (id === "lang-hant") {
+        play("button");
+        setLang("zh-Hant");
+        this.prompt = null;
+        return;
+      }
+      if (id === "lang-cancel" || id === "cancel-buy") {
+        play("button");
+        this.prompt = null;
+        return;
+      }
       if (id === "confirm-buy") {
         this.confirmPrompt();
         return;
@@ -534,10 +617,31 @@ export class Game {
       this.muted = toggleMuted();
       return;
     }
-    if (id === "start" || id === "again") this.startRun();
-    if (id === "restart" || id === "menu") this.returnToMenu();
+    if (id === "lang") {
+      if (getLang() === "en") this.prompt = { mode: "lang" };
+      else setLang("en");
+      return;
+    }
+    if (id === "start") this.startRun();
+    if (id === "again") {
+      this.leaveWithAd("again");
+      return;
+    }
+    if (id === "restart" || id === "menu") {
+      if (this.state === GAMEOVER) {
+        this.leaveWithAd("menu");
+        return;
+      }
+      this.returnToMenu();
+    }
     if (id === "codex") this.openCodex();
     if (id === "shop") this.openShop();
+    if (id === "board") this.openBoard();
+    if (id === "board-home") this.setBoardScope("home");
+    if (id === "board-global") this.setBoardScope("global");
+    if (id === "board-rename") this.renameBoard();
+    if (id === "board-title") this.pickBoardTitle();
+    if (id.startsWith("wear-")) this.setBoardTitle(id.slice(5));
     if (id === "achieve") this.openAchieve();
     if (id === "resume") this.setPaused(false);
     if (id === "use-retry") this.tryUseOrBuy("retry");
@@ -561,6 +665,101 @@ export class Game {
     this.showCover();
   }
 
+  openBoard() {
+    this.state = BOARD;
+    this.summonPicker = false;
+    this.prompt = null;
+    this.showCover();
+    this.refreshBoard();
+  }
+
+  setBoardScope(scope) {
+    this.boardScope = scope === "global" ? "global" : "home";
+    play("button");
+    this.refreshBoard();
+  }
+
+  renameBoard() {
+    if (isBoardOverlayOpen()) return;
+    play("button");
+    const current = this.boardProfile.name;
+    window.setTimeout(() => {
+      if (isBoardOverlayOpen()) return;
+      promptBoardName(current).then(async (name) => {
+        if (!name) return;
+        if (name === this.boardProfile.name) {
+        this.tokenToast = { amount: 0, reason: t("nickSame"), at: this.time };
+          return;
+        }
+        this.boardProfile = { ...this.boardProfile, name };
+        saveBoardProfile(this.boardProfile);
+        this.tokenToast = { amount: 0, reason: t("nickTo", { name }), at: this.time };
+        if (this.highScore > 0) await submitRunScore(this.highScore);
+        this.refreshBoard();
+      });
+    }, 40);
+  }
+
+  pickBoardTitle() {
+    if (isBoardOverlayOpen()) return;
+    play("button");
+    const choices = ACHIEVEMENTS.filter((row) => this.achieve.unlocked[row.id]).map((row) => ({
+      id: row.id,
+      title: achieveTitle(row.id),
+    }));
+    promptBoardTitle(choices, this.boardProfile.titleId).then((titleId) => {
+      if (titleId === null) return;
+      this.setBoardTitle(titleId);
+    });
+  }
+
+  setBoardTitle(titleId) {
+    const next = titleId && this.achieve.unlocked[titleId] ? titleId : "";
+    if (next === (this.boardProfile.titleId || "")) {
+      if (next) this.tokenToast = { amount: 0, reason: t("titleOn", { name: achieveTitle(next) }), at: this.time };
+      return;
+    }
+    this.boardProfile = { ...this.boardProfile, titleId: next };
+    saveBoardProfile(this.boardProfile);
+    play("button");
+    this.tokenToast = {
+      amount: 0,
+      reason: next ? t("titleShow", { name: achieveTitle(next) }) : t("titleOff"),
+      at: this.time,
+    };
+    const sync = this.highScore > 0 ? submitRunScore(this.highScore) : Promise.resolve();
+    sync.finally(() => {
+      if (this.state === BOARD) this.refreshBoard();
+    });
+  }
+
+  refreshBoard() {
+    this.boardLoading = true;
+    this.boardError = "";
+    fetchBoard(this.boardScope, this.boardProfile.id)
+      .then((data) => {
+        this.boardLoading = false;
+        this.boardRows = data.rows || [];
+        this.boardMe = data.me;
+        this.boardCountry = data.country || "";
+        this.boardCountryName = data.countryName || "";
+        if (data.country) {
+          this.boardProfile = { ...this.boardProfile, country: data.country };
+          saveBoardProfile(this.boardProfile);
+        }
+      })
+      .catch(() => {
+        this.boardLoading = false;
+        this.boardError = t("boardFail");
+      });
+  }
+
+  leaveWithAd(kind) {
+    if (this.adLeaving || isAdBusy()) return;
+    if (kind === "again") this.startRun();
+    else this.returnToMenu();
+  }
+
   showCover() {
     this.spawnToken += 1;
     this.lastType = null;
@@ -569,6 +768,7 @@ export class Game {
     this.scene.setCutGuide?.(false);
     this.scene.setTheme("fruit");
     this.scene.clearObject();
+    this.itemLoading = false;
     this.landAt = Infinity;
     this.landPlayed = true;
     this.sliceObject = null;
@@ -579,7 +779,7 @@ export class Game {
     if (!["retry", "guide", "summon"].includes(item)) return;
     const cost = CONFIG.economy.prices[item];
     if (this.economy.tokens < cost) {
-      this.tokenToast = { amount: 0, reason: "代币不足", at: this.time };
+      this.tokenToast = { amount: 0, reason: t("noTokens"), at: this.time };
       play("miss");
       return;
     }
@@ -626,17 +826,20 @@ export class Game {
   claimShare(channel) {
     if (!["fb", "x", "threads"].includes(channel)) return;
     openShare(channel, {
-      title: CONFIG.ui.title,
-      text: `${CONFIG.ui.title} — 一刀切正中`,
+      title: t("title"),
+      text: `${t("title")} — ${t("hintCut")}`,
     });
     if (!this.shareReady(channel)) return;
     this.economy.lastShareByChannel[channel] = todayKey();
-    this.grantTokens(CONFIG.economy.shareTokens, "分享");
+    this.grantTokens(CONFIG.economy.shareTokens, t("share"));
   }
 
   tryRewardedAd() {
-    onRewardedAd((ok) => {
-      if (ok) this.grantTokens(CONFIG.economy.adTokens ?? CONFIG.economy.shareTokens, "广告");
+    if (isAdBusy()) return;
+    onRewardedAd((ok, status) => {
+      if (ok) this.grantTokens(CONFIG.economy.adTokens ?? CONFIG.economy.shareTokens, t("ad"));
+      else if (status === "no_fill") this.tokenToast = { amount: 0, reason: t("noAd"), at: this.time };
+      else if (status === "closed") this.tokenToast = { amount: 0, reason: t("adSkip"), at: this.time };
     });
   }
 
@@ -653,7 +856,7 @@ export class Game {
     if (item === "guide") {
       if (this.state !== PLAYING && this.state !== FEEDBACK) return;
       if (this.guideArmed) {
-        this.tokenToast = { amount: 0, reason: "准星已开启", at: this.time };
+        this.tokenToast = { amount: 0, reason: t("guideOn"), at: this.time };
         play("button");
         return;
       }
@@ -668,7 +871,7 @@ export class Game {
       if (this.pendingGameOver) return;
       if (this.state !== PLAYING && this.state !== FEEDBACK) return;
       if (!this.summonableTypes().length) {
-        this.tokenToast = { amount: 0, reason: "先切开一件才能点名", at: this.time };
+        this.tokenToast = { amount: 0, reason: t("summonNeed"), at: this.time };
         play("miss");
         return;
       }
@@ -771,6 +974,7 @@ export class Game {
     this.scene.setInspect(true);
     await this.readyModel(type);
     if (token !== this.spawnToken || this.codexSelected !== type) return;
+    retainPlayModels(themeIdForType(type), themeIdForType(type), type);
     this.scene.setTheme(themeIdForType(type));
     this.scene.spawn(type, displayLength(type));
     this.lastType = type;
@@ -806,13 +1010,13 @@ export class Game {
     this.paused = false;
     this.state = PLAYING;
     this.scene.setInspect(false);
+    retainPlayModels("fruit", themeAt(1).id, "apple");
     this.spawnObject(0);
   }
 
-  returnToMenu() {
+  async returnToMenu() {
     if ((this.state === PLAYING || this.state === FEEDBACK) && !this.runEnded) {
       onGameEnd(this.scoreState.total);
-      onShowAd("return_to_menu");
       this.runEnded = true;
     }
     this.state = MENU;
@@ -830,6 +1034,7 @@ export class Game {
     this.prompt = null;
     this.guideArmed = false;
     this.scene.setCutGuide?.(false);
+    retainMenuModels();
     this.showCover();
   }
 
@@ -860,7 +1065,8 @@ export class Game {
       onHappyTime();
     }
     onGameEnd(this.scoreState.total);
-    onShowAd("gameover");
+    submitRunScore(this.scoreState.total);
+    noteMeaningfulRun();
     this.flushAchievements();
     this.state = GAMEOVER;
   }
@@ -915,18 +1121,17 @@ export class Game {
 
     const unlock = unlockCodexEntry(this.lastType, baseScore);
     this.codex = unlock.data;
-    submitCollectionScore(this.collection());
 
     if (baseScore >= 98) this.streak98 += 1;
     else this.streak98 = 0;
     if (baseScore >= 100) this.streak100 += 1;
     else this.streak100 = 0;
     if (this.streak98 > 0 && this.streak98 % CONFIG.economy.tokenStreak98 === 0) {
-      this.grantTokens(CONFIG.economy.tokenStreak98Reward, "连刀");
+      this.grantTokens(CONFIG.economy.tokenStreak98Reward, t("streak"));
     }
     if (this.streak100 > 0 && this.streak100 % CONFIG.economy.tokenStreak100 === 0) {
-      this.grantRetry("百连");
-      this.grantTokens(CONFIG.economy.tokenStreak100Reward, "百连");
+      this.grantRetry(t("hundred"));
+      this.grantTokens(CONFIG.economy.tokenStreak100Reward, t("hundred"));
     }
 
     if (this.guideArmed) {
@@ -1007,7 +1212,7 @@ export class Game {
       baseScore: 0,
       gained: 0,
       combo: this.scoreState.combo,
-      grade: "没切到",
+      grade: t("missCut"),
       stroke,
       cutX: this.sliceObject.x + this.sliceObject.width / 2,
       fatal: this.pendingGameOver,
@@ -1028,6 +1233,7 @@ export class Game {
       this.themeFlash = this.time;
     }
     this.state = PLAYING;
+    retainPlayModels(themeAt(this.themeIndex).id, themeAt(this.themeIndex + 1).id, this.lastType);
     this.spawnObject(this.round);
   }
 
@@ -1036,6 +1242,7 @@ export class Game {
     const token = ++this.spawnToken;
     await this.readyModel(type);
     if (token !== this.spawnToken) return;
+    retainPlayModels(themeId, themeId, type);
     this.lastType = type;
     this.objectLength = displayLength(type);
     this.scene.setTheme(themeId);
@@ -1093,14 +1300,16 @@ export class Game {
   }
 
   update(dt) {
+    if (isAdBusy() || this.adLeaving) return;
     if (this.paused) return;
     this.time += dt;
+    if (this.state === PLAYING) notePlayTime(dt);
     const fatalSlow = this.state === FEEDBACK && this.lastResult?.fatal;
     this.scene.update(dt, { slowMo: fatalSlow });
-    this.scene.setShowcase(this.state === MENU || this.state === CODEX || this.state === SHOP || this.state === ACHIEVE);
+    this.scene.setShowcase(this.state === MENU || this.state === CODEX || this.state === SHOP || this.state === ACHIEVE || this.state === BOARD);
     this.updateSparks(dt);
     tickMusic({
-      mood: this.state === MENU || this.state === CODEX || this.state === SHOP || this.state === ACHIEVE ? "menu" : this.state === GAMEOVER ? "over" : "play",
+      mood: this.state === MENU || this.state === CODEX || this.state === SHOP || this.state === ACHIEVE || this.state === BOARD ? "menu" : this.state === GAMEOVER ? "over" : "play",
       combo: this.scoreState.combo,
       theme: this.activeTheme || "fruit",
     });
@@ -1135,6 +1344,7 @@ export class Game {
   }
 
   cursorFor(hovered) {
+    if (isAdBusy() || this.adLeaving) return "wait";
     if (this.summonPicker) {
       if (this.summonDrag) return "grabbing";
       if (hovered) return "pointer";
@@ -1156,7 +1366,7 @@ export class Game {
     if (this.hideHud) return;
     ctx.clearRect(0, 0, this.width, this.height);
 
-    if (this.state === MENU || this.state === SHOP || this.state === ACHIEVE) {
+    if (this.state === MENU || this.state === SHOP || this.state === ACHIEVE || this.state === BOARD) {
       ctx.fillStyle = CONFIG.ui.menuOverlay;
       ctx.fillRect(0, 0, this.width, this.height);
     }
@@ -1191,8 +1401,8 @@ export class Game {
       time: this.time,
       runSummary: this.runSummary,
       muted: this.muted,
-      typeLabel: TYPE_LABELS[this.lastType] || "",
-      themeName: themeAt(this.themeIndex).name,
+      typeLabel: typeLabel(this.lastType),
+      themeName: themeName(themeAt(this.themeIndex).id),
       themeIndex: this.themeIndex,
       themeCount: CONFIG.themes.order.length,
       themeFlashAge: this.time - this.themeFlash,
@@ -1217,23 +1427,49 @@ export class Game {
       stallTrophy: stallTrophy(this.codex, this.codexTheme),
       stallStars: stallStars(this.codex, this.codexTheme),
       grandTrophy: hasGrandTrophy(this.codex),
-      trophyLabel: TROPHY_LABEL,
-      dailyTheme: CONFIG.themes[dailyThemeId()]?.name || "",
+      trophyLabel: {
+        seen: t("stallSeen"),
+        bronze: t("bronze"),
+        gold: t("gold"),
+        grand: t("grandTrophy"),
+      },
+      dailyTheme: themeName(dailyThemeId()),
       shareReady: {
         fb: this.shareReady("fb"),
         x: this.shareReady("x"),
         threads: this.shareReady("threads"),
       },
       summonPicker: this.summonPicker,
-      tokenToast: this.tokenToast && this.time - this.tokenToast.at < 2.2 ? this.tokenToast : null,
+      tokenToast: this.tokenToast && this.time - this.tokenToast.at < 3.2 ? this.tokenToast : null,
       achieveUnlocked: this.achieve.unlocked,
       achieveList: ACHIEVEMENTS,
       prices: CONFIG.economy.prices,
       shareTokens: CONFIG.economy.shareTokens,
       adTokens: CONFIG.economy.adTokens,
+      adsStatus: adsStatus(),
       pendingPrompt: this.prompt,
       canRetry: Boolean(this.pendingGameOver && this.economy.inventory.retry > 0),
+      boardRows: this.boardRows,
+      boardMe: this.boardMe,
+      boardScope: this.boardScope,
+      boardCountryName: this.boardCountryName,
+      boardLoading: this.boardLoading,
+      boardError: this.boardError,
+      boardName: this.boardProfile?.name || "",
+      boardTitle: achieveTitle(this.boardProfile?.titleId),
+      boardTitleId: this.boardProfile?.titleId || "",
+      itemLoading: this.itemLoading,
+      adBusy: this.adBusyUi || isAdBusy(),
     });
+    if (isAdBusy() || this.adLeaving) {
+      ctx.fillStyle = "rgba(12, 9, 7, 0.62)";
+      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.fillStyle = CONFIG.ui.cream;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "700 18px 'PingFang TC','Noto Sans TC',system-ui,sans-serif";
+      ctx.fillText(t("adPlaying"), this.width / 2, this.height * 0.48);
+    }
   }
 
   drawVignette(ctx) {
@@ -1253,7 +1489,7 @@ export class Game {
         ? "rgba(90, 12, 8, 0.42)"
         : this.state === MENU
           ? "rgba(0, 0, 0, 0.18)"
-            : this.state === CODEX || this.state === SHOP || this.state === ACHIEVE
+            : this.state === CODEX || this.state === SHOP || this.state === ACHIEVE || this.state === BOARD
             ? "rgba(0, 0, 0, 0.08)"
             : "rgba(0, 0, 0, 0.14)",
     );

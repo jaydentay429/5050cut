@@ -2,8 +2,13 @@
  * 成就目录。解锁条件只读快照，发币在 Game.flushAchievements。
  */
 import { CONFIG } from "./config.js?v=91";
-import { getItem } from "./worlds.js?v=99";
+import { getItem } from "./worlds.js?v=101";
 import { hasGrandTrophy, stallTrophy } from "./progress.js";
+
+/** HUD 总分（含连击加成），不是满分刀 ×100。 */
+function runTotal(s) {
+  return Math.max(Number(s.highScore) || 0, Number(s.runScore) || 0);
+}
 
 export const ACHIEVEMENTS = [
   { id: "first_cut", title: "第一刀", hint: "切开任意一件", tokens: 1, test: (s) => s.unlockedCount >= 1 },
@@ -12,11 +17,11 @@ export const ACHIEVEMENTS = [
   { id: "combo_25", title: "热刀不歇", hint: "连击达到 25", tokens: 4, test: (s) => s.bestCombo >= 25 },
   { id: "combo_50", title: "一气呵成", hint: "连击达到 50", tokens: 8, test: (s) => s.bestCombo >= 50 },
   { id: "combo_100", title: "百连成神", hint: "连击达到 100", tokens: 16, test: (s) => s.bestCombo >= 100 },
-  { id: "score_500", title: "小试牛刀", hint: "单局满分累计 1000", tokens: 1, test: (s) => s.highPerfect >= 1000 },
-  { id: "score_2000", title: "千刀入账", hint: "单局满分累计 5000", tokens: 3, test: (s) => s.highPerfect >= 5000 },
-  { id: "score_5000", title: "摊位常客", hint: "单局满分累计 10000", tokens: 6, test: (s) => s.highPerfect >= 10000 },
-  { id: "score_12000", title: "一刀传城", hint: "单局满分累计 25000", tokens: 12, test: (s) => s.highPerfect >= 25000 },
-  { id: "score_25000", title: "史册留名", hint: "单局满分累计 50000", tokens: 20, test: (s) => s.highPerfect >= 50000 },
+  { id: "score_500", title: "小试牛刀", hint: "单局得分 1000", tokens: 1, test: (s) => runTotal(s) >= 1000 },
+  { id: "score_2000", title: "千刀入账", hint: "单局得分 5000", tokens: 3, test: (s) => runTotal(s) >= 5000 },
+  { id: "score_5000", title: "摊位常客", hint: "单局得分 10000", tokens: 6, test: (s) => runTotal(s) >= 10000 },
+  { id: "score_12000", title: "一刀传城", hint: "单局得分 25000", tokens: 12, test: (s) => runTotal(s) >= 25000 },
+  { id: "score_25000", title: "史册留名", hint: "单局得分 50000", tokens: 20, test: (s) => runTotal(s) >= 50000 },
   { id: "perfect", title: "正中红心", hint: "一次切出 100 分", tokens: 1, test: (s) => s.perfects >= 1 },
   { id: "collect_10", title: "见多识广", hint: "图鉴解锁 10 件", tokens: 2, test: (s) => s.unlockedCount >= 10 },
   { id: "collect_30", title: "收藏家", hint: "图鉴解锁 30 件", tokens: 4, test: (s) => s.unlockedCount >= 30 },
@@ -31,6 +36,12 @@ export const ACHIEVEMENTS = [
   { id: "worlds_3", title: "连逛三摊", hint: "单局进入第 3 摊", tokens: 2, test: (s) => s.worlds >= 3 },
   { id: "worlds_10", title: "环城一圈", hint: "单局走过十摊", tokens: 8, test: (s) => s.worlds >= CONFIG.themes.order.length },
 ];
+
+export const ACHIEVEMENT_TITLES = Object.fromEntries(ACHIEVEMENTS.map((row) => [row.id, row.title]));
+
+export function achievementTitle(id) {
+  return ACHIEVEMENT_TITLES[id] || "";
+}
 
 export function achievementSnapshot({
   highScore = 0,

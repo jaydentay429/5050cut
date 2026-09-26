@@ -1,5 +1,5 @@
-import { CONFIG } from "./config.js?v=100";
-import { TYPE_LABELS } from "./object.js?v=70";
+import { CONFIG } from "./config.js?v=104";
+import { achieveHint, achieveTitle, getLang, t, themeName, titleIdFromStored, typeLabel } from "./i18n.js?v=138";
 
 const TROPHY_CHIP = {
   none: { fill: "rgba(16, 12, 9, 0.45)", text: "rgba(243, 230, 208, 0.55)", stroke: "rgba(243, 230, 208, 0.28)" },
@@ -9,13 +9,40 @@ const TROPHY_CHIP = {
 };
 
 const SHOP_HINTS = {
-  retry: "断连后立刻再切同一件",
-  guide: "下一刀画出正中线",
-  summon: "指定一件已切开的物品出现",
+  retry: () => t("hintRetry"),
+  guide: () => t("hintGuide"),
+  summon: () => t("hintSummon"),
 };
 
 export function uiScale(width, height) {
   return Math.min(width / 390, height / 700, 1.35);
+}
+
+export function uiSafe() {
+  try {
+    const cs = getComputedStyle(document.documentElement);
+    const n = (name) => {
+      const v = parseFloat(cs.getPropertyValue(name));
+      return Number.isFinite(v) ? v : 0;
+    };
+    return { t: n("--safe-t"), r: n("--safe-r"), b: n("--safe-b"), l: n("--safe-l") };
+  } catch {
+    return { t: 0, r: 0, b: 0, l: 0 };
+  }
+}
+
+function layoutPad(width, height) {
+  const s = uiScale(width, height);
+  const safe = uiSafe();
+  const g = Math.max(12, 16 * s);
+  return {
+    s,
+    g,
+    l: g + safe.l,
+    r: g + safe.r,
+    t: g + safe.t,
+    b: g + safe.b,
+  };
 }
 
 function layoutBuyConfirm(width, height) {
@@ -30,7 +57,7 @@ function layoutBuyConfirm(width, height) {
   return {
     "cancel-buy": {
       id: "cancel-buy",
-      label: "取消",
+      label: t("cancel"),
       kind: "ghost",
       x: boxX,
       y: cy,
@@ -39,7 +66,7 @@ function layoutBuyConfirm(width, height) {
     },
     "confirm-buy": {
       id: "confirm-buy",
-      label: "确认",
+      label: t("confirm"),
       x: boxX + cw + 12,
       y: cy,
       w: cw,
@@ -50,17 +77,21 @@ function layoutBuyConfirm(width, height) {
 
 function itemChipLabel(name, count, price) {
   if (count > 0) return `${name}  ×${count}`;
-  return `${name}  ${price}币`;
+  return `${name}  ${price}${t("tokenUnit")}`;
 }
 
 function drawBuyConfirm(ctx, width, height, model) {
   const prompt = model.pendingPrompt;
+  if (prompt?.mode === "lang") {
+    drawLangPick(ctx, width, height, model);
+    return;
+  }
   const item = prompt?.item || model.pendingBuy;
   if (!item) return;
   const mode = prompt?.mode || "buy";
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
-  const names = { retry: "再试刀", guide: "准星", summon: "点名" };
+  const names = { retry: t("retry"), guide: t("guide"), summon: t("summon") };
   const cost = model.prices?.[item] ?? CONFIG.economy.prices[item];
   ctx.fillStyle = "rgba(8, 6, 4, 0.72)";
   ctx.fillRect(0, 0, width, height);
@@ -77,16 +108,18 @@ function drawBuyConfirm(ctx, width, height, model) {
   ctx.textBaseline = "middle";
   ctx.fillStyle = spec.cream;
   ctx.font = font(Math.max(18, 20 * s), "800");
-  ctx.fillText(mode === "use" ? "确认使用" : "确认购买", width / 2, boxY + Math.max(36, 40 * s));
+  ctx.fillText(mode === "use" ? t("confirmUse") : t("confirmBuy"), width / 2, boxY + Math.max(36, 40 * s));
   ctx.fillStyle = spec.creamDim;
   ctx.font = font(Math.max(14, 15 * s), "600");
   ctx.fillText(
-    mode === "use" ? `使用 1 个${names[item] || ""}？` : `花 ${cost} 币买 1 个${names[item] || ""}？`,
+    mode === "use"
+      ? `${t("confirmUse")} · ${names[item] || ""}`
+      : `${t("confirmBuy")} · ${cost}${t("tokenUnit")} ${names[item] || ""}`,
     width / 2,
     boxY + Math.max(64, 70 * s),
   );
   ctx.font = font(Math.max(12, 13 * s), "600");
-  ctx.fillText(SHOP_HINTS[item] || "", width / 2, boxY + Math.max(88, 96 * s));
+  ctx.fillText(SHOP_HINTS[item]?.() || "", width / 2, boxY + Math.max(88, 96 * s));
   drawButton(ctx, model.buttons["cancel-buy"], {
     hovered: model.hoveredId === "cancel-buy",
     pressed: model.pressedId === "cancel-buy",
@@ -98,7 +131,14 @@ function drawBuyConfirm(ctx, width, height, model) {
 }
 
 function font(size, weight = "600") {
-  return `${weight} ${size}px "PingFang TC", "Noto Sans TC", system-ui, sans-serif`;
+  const code = getLang();
+  const family =
+    code === "en"
+      ? `"Avenir Next", "Segoe UI", system-ui, sans-serif`
+      : code === "zh-Hans"
+        ? `"PingFang SC", "Noto Sans SC", system-ui, sans-serif`
+        : `"PingFang TC", "Noto Sans TC", system-ui, sans-serif`;
+  return `${weight} ${size}px ${family}`;
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -122,52 +162,171 @@ function pointInRect(point, rect) {
 }
 
 function muteButton(width, height, muted) {
-  const s = uiScale(width, height);
-  const pad = Math.max(12, 16 * s);
-  const w = Math.max(64, 76 * s);
-  const h = Math.max(36, 40 * s);
+  const p = layoutPad(width, height);
+  const w = Math.max(72, 82 * p.s);
+  const h = Math.max(40, 44 * p.s);
   return {
     id: "mute",
-    label: muted ? "开声音" : "关声音",
-    x: pad,
-    y: height - pad - h,
+    label: muted ? t("muteOn") : t("muteOff"),
+    x: p.l,
+    y: height - p.b - h,
     w,
     h,
   };
 }
 
+function langButton(width, height, place = "top") {
+  const p = layoutPad(width, height);
+  const code = getLang();
+  const two = code !== "en";
+  const w = Math.max(52, 58 * p.s);
+  const h = Math.max(40, 44 * p.s);
+  const label = two ? t("lang") : "EN";
+  const sub = two ? "en" : "";
+  if (place === "dock") {
+    const mute = muteButton(width, height, false);
+    return {
+      id: "lang",
+      label,
+      sub,
+      kind: "ghost",
+      x: mute.x + mute.w + Math.max(8, 8 * p.s),
+      y: mute.y,
+      w,
+      h,
+    };
+  }
+  return {
+    id: "lang",
+    label,
+    sub,
+    kind: "ghost",
+    x: width - p.r - w,
+    y: p.t,
+    w,
+    h,
+  };
+}
+
+function layoutLangPick(width, height) {
+  const s = uiScale(width, height);
+  const boxW = Math.min(320, width - 40);
+  const boxH = Math.max(220, 236 * s);
+  const boxX = (width - boxW) / 2;
+  const boxY = height * 0.36;
+  const btnH = Math.max(46, 50 * s);
+  const gap = 10;
+  const inner = 20;
+  const y0 = boxY + Math.max(64, 72 * s);
+  return {
+    "lang-hans": {
+      id: "lang-hans",
+      label: t("langHans"),
+      x: boxX + inner,
+      y: y0,
+      w: boxW - inner * 2,
+      h: btnH,
+    },
+    "lang-hant": {
+      id: "lang-hant",
+      label: t("langHant"),
+      x: boxX + inner,
+      y: y0 + btnH + gap,
+      w: boxW - inner * 2,
+      h: btnH,
+    },
+    "lang-cancel": {
+      id: "lang-cancel",
+      label: t("cancel"),
+      kind: "ghost",
+      x: boxX + inner,
+      y: y0 + (btnH + gap) * 2,
+      w: boxW - inner * 2,
+      h: Math.max(42, 46 * s),
+    },
+  };
+}
+
+function promptButtons(width, height, prompt) {
+  if (!prompt) return {};
+  if (prompt.mode === "lang") return layoutLangPick(width, height);
+  return layoutBuyConfirm(width, height);
+}
+
+export function mergePromptButtons(buttons, width, height, prompt) {
+  if (prompt) Object.assign(buttons, promptButtons(width, height, prompt));
+  return buttons;
+}
+
+function drawLangPick(ctx, width, height, model) {
+  const s = uiScale(width, height);
+  const spec = CONFIG.ui;
+  ctx.fillStyle = "rgba(8, 6, 4, 0.72)";
+  ctx.fillRect(0, 0, width, height);
+  const boxW = Math.min(320, width - 40);
+  const boxH = Math.max(220, 236 * s);
+  const boxX = (width - boxW) / 2;
+  const boxY = height * 0.36;
+  fillPlate(ctx, boxX, boxY, boxW, boxH, 18, "rgba(16, 12, 9, 0.94)");
+  ctx.strokeStyle = "rgba(243, 230, 208, 0.35)";
+  ctx.lineWidth = 1.6;
+  roundRect(ctx, boxX, boxY, boxW, boxH, 18);
+  ctx.stroke();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = spec.cream;
+  ctx.font = font(Math.max(18, 20 * s), "800");
+  ctx.fillText(t("langAsk"), width / 2, boxY + Math.max(36, 40 * s));
+  for (const id of ["lang-hans", "lang-hant", "lang-cancel"]) {
+    drawButton(ctx, model.buttons[id], {
+      hovered: model.hoveredId === id,
+      pressed: model.pressedId === id,
+    });
+  }
+}
+
 /** 按钮位置与游戏逻辑共用，保证点击区域和绘制一致。 */
 export function layoutButtons(width, height, state, muted = false, options = {}) {
-  const s = uiScale(width, height);
-  const pad = Math.max(12, 16 * s);
+  const p = layoutPad(width, height);
+  const s = p.s;
+  const padL = p.l;
+  const padR = p.r;
+  const padT = p.t;
+  const padB = p.b;
   const mute = muteButton(width, height, muted);
 
   if (options.paused) {
-    const w = Math.min(280 * s, width - pad * 2);
+    const w = Math.min(280 * s, width - padL - padR);
     const h = Math.max(48, 54 * s);
     return {
       resume: {
         id: "resume",
-        label: "继续",
+        label: t("resume"),
         x: (width - w) / 2,
         y: height * 0.52,
         w,
         h,
       },
       mute,
+      lang: langButton(width, height),
     };
   }
 
   if (state === "menu") {
-    const w = Math.min(280 * s, width - pad * 2);
+    const w = Math.min(280 * s, width - padL - padR);
     const h = Math.max(48, 54 * s);
     const unlocked = options.unlockedCount ?? 0;
     const total = options.catalogTotal ?? 0;
-    const startY = height * 0.58;
+    const startY = height * 0.54;
+    const ghostH = Math.max(42, 46 * s);
+    const rowY = startY + h + 10 + ghostH + 10;
+    const gap = 8;
+    const colW = (w - gap * 2) / 3;
+    const rowX = (width - w) / 2;
     return {
       start: {
         id: "start",
-        label: "开始游戏",
+        label: t("start"),
         x: (width - w) / 2,
         y: startY,
         w,
@@ -175,32 +334,42 @@ export function layoutButtons(width, height, state, muted = false, options = {})
       },
       codex: {
         id: "codex",
-        label: total ? `图鉴  ${unlocked}/${total}` : "图鉴",
+        label: total ? `${t("catalog")}  ${unlocked}/${total}` : t("catalog"),
         kind: "ghost",
         x: (width - w) / 2,
         y: startY + h + 10,
         w,
-        h: Math.max(42, 46 * s),
+        h: ghostH,
       },
       shop: {
         id: "shop",
-        label: "商店",
+        label: t("shop"),
         kind: "ghost",
-        x: (width - w) / 2,
-        y: startY + h + 10 + Math.max(42, 46 * s) + 10,
-        w: (w - 10) / 2,
-        h: Math.max(42, 46 * s),
+        x: rowX,
+        y: rowY,
+        w: colW,
+        h: ghostH,
+      },
+      board: {
+        id: "board",
+        label: t("board"),
+        kind: "ghost",
+        x: rowX + colW + gap,
+        y: rowY,
+        w: colW,
+        h: ghostH,
       },
       achieve: {
         id: "achieve",
-        label: "成就",
+        label: t("achieve"),
         kind: "ghost",
-        x: (width - w) / 2 + (w - 10) / 2 + 10,
-        y: startY + h + 10 + Math.max(42, 46 * s) + 10,
-        w: (w - 10) / 2,
-        h: Math.max(42, 46 * s),
+        x: rowX + (colW + gap) * 2,
+        y: rowY,
+        w: colW,
+        h: ghostH,
       },
       mute,
+      lang: langButton(width, height, "dock"),
     };
   }
 
@@ -210,7 +379,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     const shareN = options.shareTokens ?? CONFIG.economy.shareTokens;
     const adN = options.adTokens ?? CONFIG.economy.adTokens;
     const ready = options.shareReady || {};
-    const w = Math.min(320, width - pad * 2);
+    const w = Math.min(320, width - padL - padR);
     const x = (width - w) / 2;
     const buyH = Math.max(52, 56 * s);
     const shareH = Math.max(40, 44 * s);
@@ -227,12 +396,12 @@ export function layoutButtons(width, height, state, muted = false, options = {})
       shareH +
       12 +
       menuH;
-    const panelY = Math.max(pad, Math.min(height * 0.08, (height - stack - pad - 52) / 2));
+        const panelY = Math.max(padT + 52, Math.min(height * 0.1, (height - stack - padB - 52) / 2));
     let y = panelY + headerH + section;
     const buy = (id, name, key, cost) => ({
       id,
       label: name,
-      hint: SHOP_HINTS[key],
+      hint: SHOP_HINTS[key](),
       price: cost,
       hold: inv[key] || 0,
       kind: "shopBuy",
@@ -242,16 +411,16 @@ export function layoutButtons(width, height, state, muted = false, options = {})
       h: buyH,
     });
     const buttons = {
-      "buy-retry": buy("buy-retry", "再试刀", "retry", prices.retry ?? 3),
-      "buy-guide": buy("buy-guide", "准星", "guide", prices.guide ?? 2),
-      "buy-summon": buy("buy-summon", "点名", "summon", prices.summon ?? 5),
+      "buy-retry": buy("buy-retry", t("retry"), "retry", prices.retry ?? 3),
+      "buy-guide": buy("buy-guide", t("guide"), "guide", prices.guide ?? 2),
+      "buy-summon": buy("buy-summon", t("summon"), "summon", prices.summon ?? 5),
     };
     buttons["buy-retry"].y = y;
     buttons["buy-guide"].y = y + buyH + gap;
     buttons["buy-summon"].y = y + (buyH + gap) * 2;
     const shareY = y + (buyH + gap) * 3 + section;
     const sw = (w - 12) / 3;
-    const shareLabel = (key, name) => (ready[key] === false ? "已领" : `${name} +${shareN}`);
+    const shareLabel = (key, name) => (ready[key] === false ? t("claimed") : `${name} +${shareN}`);
     buttons["share-fb"] = {
       id: "share-fb",
       label: shareLabel("fb", "FB"),
@@ -282,7 +451,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     const adY = shareY + shareH + section;
     buttons["ad-token"] = {
       id: "ad-token",
-      label: `看广告  +${adN}币`,
+      label: `${t("watchAd")}  +${adN}${t("tokenUnit")}`,
       kind: "ghost",
       x,
       y: adY,
@@ -291,7 +460,7 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     };
     buttons.menu = {
       id: "menu",
-      label: "返回",
+      label: t("back"),
       kind: "ghost",
       x,
       y: adY + shareH + 12,
@@ -299,24 +468,132 @@ export function layoutButtons(width, height, state, muted = false, options = {})
       h: menuH,
     };
     buttons.mute = mute;
-    if (options.pendingPrompt) Object.assign(buttons, layoutBuyConfirm(width, height));
+    buttons.lang = langButton(width, height);
+    if (options.pendingPrompt) Object.assign(buttons, promptButtons(width, height, options.pendingPrompt));
     buttons._shop = { panelY, panelW: w, panelX: x, stack, headerH, section, shareN, adN };
     return buttons;
   }
 
   if (state === "achieve") {
     const menuH = Math.max(42, 46 * s);
-    const gap = 10;
-    const menuX = mute.x + mute.w + gap;
-    return {
-      mute: { ...mute, y: height - pad - menuH, h: menuH },
+    const gap = 8;
+    const muteDock = { ...mute, y: height - padB - menuH, h: menuH };
+    const lang = {
+      ...langButton(width, height, "dock"),
+      y: muteDock.y,
+      h: menuH,
+      x: muteDock.x + muteDock.w + gap,
+    };
+    const menuX = lang.x + lang.w + gap;
+    const buttons = {
+      mute: muteDock,
+      lang,
       menu: {
         id: "menu",
-        label: "返回",
+        label: t("back"),
         kind: "ghost",
         x: menuX,
-        y: height - pad - menuH,
-        w: width - pad - menuX,
+        y: muteDock.y,
+        w: width - padR - menuX,
+        h: menuH,
+      },
+    };
+    const list = options.achieveList || [];
+    const unlocked = options.achieveUnlocked || {};
+    const cols = 2;
+    const rows = Math.max(1, Math.ceil(list.length / cols));
+    const cellGap = 8;
+    const panelX = padL;
+    const panelW = width - padL - padR;
+    const panelY = padT;
+    const panelBottom = height - padB - menuH - 10;
+    const gridY = panelY + Math.max(78, 86 * s);
+    const gridH = panelBottom - gridY - 8;
+    const cellW = (panelW - 24 - cellGap) / cols;
+    const cellH = Math.min(56, (gridH - cellGap * (rows - 1)) / rows);
+    const startX = panelX + 12;
+    for (let i = 0; i < list.length; i += 1) {
+      const row = list[i];
+      if (!unlocked[row.id]) continue;
+      const col = i % cols;
+      const r = Math.floor(i / cols);
+      buttons[`wear-${row.id}`] = {
+        id: `wear-${row.id}`,
+        x: startX + col * (cellW + cellGap),
+        y: gridY + r * (cellH + cellGap),
+        w: cellW,
+        h: cellH,
+      };
+    }
+    return buttons;
+  }
+
+  if (state === "board") {
+    const menuH = Math.max(42, 46 * s);
+    const tabH = Math.max(40, 44 * s);
+    const gap = 8;
+    const muteDock = { ...mute, y: height - padB - menuH, h: menuH };
+    const lang = {
+      ...langButton(width, height, "dock"),
+      y: muteDock.y,
+      h: menuH,
+      x: muteDock.x + muteDock.w + gap,
+    };
+    const menuX = lang.x + lang.w + gap;
+    const chipH = Math.max(32, 34 * s);
+    const chipY = padT + Math.max(86, 94 * s);
+    const chipGap = 8;
+    const chipW = (width - padL - padR - chipGap) / 2;
+    const tabY = chipY + chipH + 10;
+    const tabW = (width - padL - padR - 8) / 2;
+    const home = options.boardScope !== "global";
+    const title = options.boardTitle || "";
+    return {
+      "board-home": {
+        id: "board-home",
+        label: t("boardHome"),
+        kind: home ? undefined : "ghost",
+        x: padL,
+        y: tabY,
+        w: tabW,
+        h: tabH,
+      },
+      "board-global": {
+        id: "board-global",
+        label: t("boardGlobal"),
+        kind: home ? "ghost" : undefined,
+        x: padL + tabW + 8,
+        y: tabY,
+        w: tabW,
+        h: tabH,
+      },
+      "board-rename": {
+        id: "board-rename",
+        label: t("rename"),
+        kind: "ghost",
+        x: padL,
+        y: chipY,
+        w: chipW,
+        h: chipH,
+      },
+      "board-title": {
+        id: "board-title",
+        label: title ? t("changeTitle") : t("pickTitle"),
+        kind: "ghost",
+        x: padL + chipW + chipGap,
+        y: chipY,
+        w: chipW,
+        h: chipH,
+      },
+      mute: muteDock,
+      lang,
+      menu: {
+        id: "menu",
+        label: t("back"),
+        kind: "ghost",
+        x: menuX,
+        y: muteDock.y,
+        w: width - padR - menuX,
         h: menuH,
       },
     };
@@ -327,12 +604,12 @@ export function layoutButtons(width, height, state, muted = false, options = {})
   }
 
   if (state === "gameover") {
-    const w = Math.min(280 * s, width - pad * 2);
+    const w = Math.min(280 * s, width - padL - padR);
     const h = Math.max(48, 52 * s);
     return {
       again: {
         id: "again",
-        label: "再来一局",
+        label: t("again"),
         x: (width - w) / 2,
         y: height * 0.58,
         w,
@@ -340,13 +617,14 @@ export function layoutButtons(width, height, state, muted = false, options = {})
       },
       menu: {
         id: "menu",
-        label: "返回菜单",
+        label: t("menu"),
         x: (width - w) / 2,
         y: height * 0.58 + h + 12,
         w,
         h,
       },
       mute,
+      lang: langButton(width, height),
     };
   }
 
@@ -359,23 +637,23 @@ export function layoutButtons(width, height, state, muted = false, options = {})
   const buttons = {
     restart: {
       id: "restart",
-      label: "重开",
-      x: width - pad - w,
-      y: pad,
+      label: t("restart"),
+      x: width - padR - w,
+      y: padT,
       w,
       h,
     },
-    mute: { ...mute, y: pad },
+    mute: { ...mute, y: padT },
   };
   const prices = options.prices || CONFIG.economy.prices;
   const inv = options.inventory || {};
   if (state === "feedback" && options.fatalBreak) {
-    const bw = Math.min(280 * s, width - pad * 2);
+    const bw = Math.min(280 * s, width - padL - padR);
     const bh = Math.max(50, 56 * s);
     const retryN = inv.retry || 0;
     buttons["use-retry"] = {
       id: "use-retry",
-      label: retryN > 0 ? `再试刀  ×${retryN}` : `再试刀  ${prices.retry ?? 3}币`,
+      label: retryN > 0 ? t("retryHave", { n: retryN }) : t("retryBuy", { n: prices.retry ?? 3 }),
       x: (width - bw) / 2,
       y: height * 0.58,
       w: bw,
@@ -383,14 +661,14 @@ export function layoutButtons(width, height, state, muted = false, options = {})
     };
     buttons["skip-retry"] = {
       id: "skip-retry",
-      label: "结束本局",
+      label: t("skip"),
       kind: "ghost",
       x: (width - bw) / 2,
       y: height * 0.58 + bh + 12,
       w: bw,
       h: Math.max(42, 46 * s),
     };
-    if (options.pendingPrompt) Object.assign(buttons, layoutBuyConfirm(width, height));
+    if (options.pendingPrompt) Object.assign(buttons, promptButtons(width, height, options.pendingPrompt));
     return buttons;
   }
   const chipW = Math.max(92, 108 * s);
@@ -399,11 +677,11 @@ export function layoutButtons(width, height, state, muted = false, options = {})
   const chips = [
     {
       id: "use-guide",
-      label: itemChipLabel("准星", inv.guide || 0, prices.guide ?? 2),
+      label: itemChipLabel(t("guide"), inv.guide || 0, prices.guide ?? 2),
     },
     {
       id: "use-summon",
-      label: itemChipLabel("点名", inv.summon || 0, prices.summon ?? 5),
+      label: itemChipLabel(t("summon"), inv.summon || 0, prices.summon ?? 5),
     },
   ];
   const totalW = chips.length * chipW + (chips.length - 1) * gap;
@@ -414,40 +692,40 @@ export function layoutButtons(width, height, state, muted = false, options = {})
       label: chip.label,
       kind: "ghost",
       x: startX + i * (chipW + gap),
-      y: height - pad - chipH,
+      y: height - padB - chipH,
       w: chipW,
       h: chipH,
     };
   });
-  if (options.pendingPrompt) Object.assign(buttons, layoutBuyConfirm(width, height));
+  if (options.pendingPrompt) Object.assign(buttons, promptButtons(width, height, options.pendingPrompt));
   return buttons;
 }
 
 function layoutSummon(width, height, types, muted, scrollY) {
-  const s = uiScale(width, height);
-  const pad = Math.max(12, 16 * s);
+  const p = layoutPad(width, height);
+  const s = p.s;
   const mute = muteButton(width, height, muted);
   const barH = Math.max(42, 46 * s);
-  mute.y = height - pad - barH;
+  mute.y = height - p.b - barH;
   mute.h = barH;
-  const gapBtn = 10;
+  const gapBtn = 8;
   const cancelX = mute.x + mute.w + gapBtn;
   const buttons = {
     mute,
     "summon-cancel": {
       id: "summon-cancel",
-      label: "取消",
+      label: t("cancel"),
       kind: "ghost",
       x: cancelX,
       y: mute.y,
-      w: width - pad - cancelX,
+      w: width - p.r - cancelX,
       h: barH,
     },
   };
   const cols = 4;
   const cellH = Math.max(36, 40 * s);
   const gap = 6;
-  const gridW = width - pad * 2;
+  const gridW = width - p.l - p.r;
   const cellW = (gridW - gap * (cols - 1)) / cols;
   const gridTop = height * 0.26;
   const gridBottom = mute.y - 12;
@@ -463,9 +741,9 @@ function layoutSummon(width, height, types, muted, scrollY) {
     if (y + cellH < gridTop + 1 || y > gridBottom - 1) return;
     buttons[`summon-${type}`] = {
       id: `summon-${type}`,
-      label: TYPE_LABELS[type] || type,
+      label: typeLabel(type),
       kind: "ghost",
-      x: pad + col * (cellW + gap),
+      x: p.l + col * (cellW + gap),
       y,
       w: cellW,
       h: cellH,
@@ -479,7 +757,7 @@ function layoutSummon(width, height, types, muted, scrollY) {
     cellH,
     gap,
     cols,
-    pad,
+    pad: p.l,
     cellW,
     types,
   };
@@ -487,7 +765,8 @@ function layoutSummon(width, height, types, muted, scrollY) {
 }
 
 export function layoutOrbitPad(width, height, anchor) {
-  const s = uiScale(width, height);
+  const p = layoutPad(width, height);
+  const s = p.s;
   const inset = Math.max(10, 12 * s);
   const size = Math.max(68, Math.min(86, 80 * s));
   const gap = Math.max(44, 52 * s);
@@ -496,8 +775,8 @@ export function layoutOrbitPad(width, height, anchor) {
   const midY = Number.isFinite(anchor?.y) ? anchor.y : height * 0.48;
   let x = right + gap;
   let y = midY - size / 2;
-  x = Math.min(width - inset - size, Math.max(inset, x));
-  y = Math.min(height - inset - size, Math.max(inset + restartH + 6, y));
+  x = Math.min(width - p.r - inset - size, Math.max(p.l + inset, x));
+  y = Math.min(height - p.b - inset - size, Math.max(p.t + inset + restartH + 6, y));
   return { x, y, w: size, h: size };
 }
 
@@ -513,42 +792,51 @@ export function hitOrbitPad(pad, point) {
 }
 
 export function layoutCodex(width, height, muted = false, themeId = "fruit") {
-  const s = uiScale(width, height);
-  const pad = Math.max(12, 16 * s);
+  const p = layoutPad(width, height);
+  const s = p.s;
   const backH = Math.max(40, 44 * s);
-  const captionH = Math.max(36, 40 * s);
+  const captionH = Math.max(48, 52 * s);
   const tabGap = Math.max(6, 7 * s);
   const tabH = Math.max(32, 36 * s);
   const tabCount = CONFIG.themes.order.length;
   const tabCols = Math.min(5, tabCount);
   const tabRows = Math.ceil(tabCount / tabCols);
-  const tabY = pad;
+  const tabY = p.t;
   const tabBarH = tabRows * (tabH + tabGap) - tabGap;
-  const btnY = height - pad - backH;
+  const btnY = height - p.b - backH;
   const mute = { ...muteButton(width, height, muted), y: btnY, h: backH };
+  const dockGap = 8;
+  const lang = {
+    ...langButton(width, height, "dock"),
+    y: btnY,
+    h: backH,
+    x: mute.x + mute.w + dockGap,
+  };
+  const menuW = Math.max(88, 108 * s);
   const buttons = {
     menu: {
       id: "menu",
-      label: "返回",
+      label: t("back"),
       kind: "ghost",
-      x: width - pad - Math.max(88, 108 * s),
+      x: width - p.r - menuW,
       y: btnY,
-      w: Math.max(88, 108 * s),
+      w: menuW,
       h: backH,
     },
     mute,
+    lang,
   };
 
-  const tabW = (width - pad * 2 - tabGap * (tabCols - 1)) / tabCols;
+  const tabW = (width - p.l - p.r - tabGap * (tabCols - 1)) / tabCols;
   CONFIG.themes.order.forEach((id, i) => {
     const col = i % tabCols;
     const row = Math.floor(i / tabCols);
     buttons[`theme-${id}`] = {
       id: `theme-${id}`,
       themeId: id,
-      label: CONFIG.themes[id].name,
+      label: themeName(id),
       kind: "tab",
-      x: pad + col * (tabW + tabGap),
+      x: p.l + col * (tabW + tabGap),
       y: tabY + row * (tabH + tabGap),
       w: tabW,
       h: tabH,
@@ -565,14 +853,14 @@ export function layoutCodex(width, height, muted = false, themeId = "fruit") {
   const trophyStrip = Math.max(28, 30 * s);
   const panelTop = Math.round(tabY + tabBarH + 8);
   const gridY = btnY - 10 - gridH;
-  const cellW = (width - pad * 2 - gap * (cols - 1)) / cols;
+  const cellW = (width - p.l - p.r - gap * (cols - 1)) / cols;
   objects.forEach((type, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     buttons[`entry-${type}`] = {
       id: `entry-${type}`,
       type,
-      x: pad + col * (cellW + gap),
+      x: p.l + col * (cellW + gap),
       y: gridY + row * (cellH + gap),
       w: cellW,
       h: cellH,
@@ -627,10 +915,10 @@ function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) 
     }
     ctx.textAlign = "right";
     ctx.font = font(Math.max(13, button.h * 0.26), "700");
-    ctx.fillText(`${button.price}币`, button.x + button.w - 16, button.y + button.h * 0.36);
+    ctx.fillText(`${button.price}${t("tokenUnit")}`, button.x + button.w - 16, button.y + button.h * 0.36);
     ctx.font = font(Math.max(11, button.h * 0.22), "600");
     ctx.globalAlpha = 0.7;
-    ctx.fillText(`持有 ${button.hold ?? 0}`, button.x + button.w - 16, button.y + button.h * 0.68);
+    ctx.fillText(t("hold", { n: button.hold ?? 0 }), button.x + button.w - 16, button.y + button.h * 0.68);
     ctx.globalAlpha = 1;
     return;
   }
@@ -657,10 +945,19 @@ function drawButton(ctx, button, { hovered, pressed, pulse = false, time = 0 }) 
     ctx.lineWidth = on || hovered || pressed ? 2 : 1.5;
     ctx.stroke();
     ctx.fillStyle = spec.cream;
-    ctx.font = font(Math.max(11, button.h * (button.kind === "yaw" ? 0.48 : button.kind === "tab" ? 0.32 : button.w < 120 ? 0.28 : 0.36)), "700");
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(button.label, button.x + button.w / 2, button.y + button.h / 2 + (button.kind === "yaw" ? -1 : 1));
+    const cx = button.x + button.w / 2;
+    if (button.sub) {
+      ctx.font = font(Math.max(11, button.h * 0.32), "700");
+      ctx.fillText(button.label, cx, button.y + button.h * 0.36);
+      ctx.fillStyle = spec.creamDim;
+      ctx.font = font(Math.max(10, button.h * 0.26), "600");
+      ctx.fillText(button.sub, cx, button.y + button.h * 0.7);
+    } else {
+      ctx.font = font(Math.max(11, button.h * (button.kind === "yaw" ? 0.48 : button.kind === "tab" ? 0.32 : button.w < 120 ? 0.28 : 0.36)), "700");
+      ctx.fillText(button.label, cx, button.y + button.h / 2 + (button.kind === "yaw" ? -1 : 1));
+    }
     ctx.restore();
     return;
   }
@@ -743,7 +1040,7 @@ function drawMenu(ctx, width, height, model) {
   ctx.font = font(Math.max(34, 50 * s), "800");
   ctx.shadowColor = "rgba(16, 12, 9, 0.55)";
   ctx.shadowBlur = 12;
-  ctx.fillText(spec.title, width / 2, height * 0.13);
+  ctx.fillText(t("title"), width / 2, height * 0.13);
   ctx.shadowBlur = 0;
 
   const colW = Math.min(width - 48, Math.max(300, 340 * s));
@@ -758,7 +1055,7 @@ function drawMenu(ctx, width, height, model) {
   ctx.fillText(high, mid, statsY);
   ctx.fillStyle = "rgba(243, 230, 208, 0.72)";
   ctx.font = font(Math.max(11, 12 * s), "600");
-  ctx.fillText("历史最高", mid, statsY + Math.max(20, 22 * s));
+  ctx.fillText(t("highScore"), mid, statsY + Math.max(20, 22 * s));
 
   const ruleY = statsY + Math.max(36, 40 * s);
   ctx.strokeStyle = "rgba(224, 122, 61, 0.55)";
@@ -778,17 +1075,17 @@ function drawMenu(ctx, width, height, model) {
   ctx.fillText(`${collect} / ${collectMax}`, mid, rowY);
   ctx.fillStyle = "rgba(243, 230, 208, 0.72)";
   ctx.font = font(Math.max(11, 12 * s), "600");
-  ctx.fillText("收藏分", mid, rowY + Math.max(16, 18 * s));
+  ctx.fillText(t("collection"), mid, rowY + Math.max(16, 18 * s));
 
   let stampY = rowY + Math.max(40, 44 * s);
   if (model.grandTrophy) {
     ctx.fillStyle = spec.accent;
     ctx.font = font(Math.max(12, 13 * s), "800");
-    ctx.fillText("刀神奖杯", mid, stampY);
+    ctx.fillText(t("grandTrophy"), mid, stampY);
     stampY += Math.max(22, 24 * s);
   }
   if (model.dailyTheme) {
-    const tag = `今日 · ${model.dailyTheme}  隐藏×2`;
+    const tag = t("daily", { name: model.dailyTheme });
     ctx.font = font(Math.max(12, 13 * s), "700");
     const tw = ctx.measureText(tag).width + 22;
     const th = Math.max(22, 24 * s);
@@ -815,6 +1112,10 @@ function drawMenu(ctx, width, height, model) {
     hovered: model.hoveredId === "shop",
     pressed: model.pressedId === "shop",
   });
+  drawButton(ctx, model.buttons.board, {
+    hovered: model.hoveredId === "board",
+    pressed: model.pressedId === "board",
+  });
   drawButton(ctx, model.buttons.achieve, {
     hovered: model.hoveredId === "achieve",
     pressed: model.pressedId === "achieve",
@@ -822,6 +1123,10 @@ function drawMenu(ctx, width, height, model) {
   drawButton(ctx, model.buttons.mute, {
     hovered: model.hoveredId === "mute",
     pressed: model.pressedId === "mute",
+  });
+  drawButton(ctx, model.buttons.lang, {
+    hovered: model.hoveredId === "lang",
+    pressed: model.pressedId === "lang",
   });
   drawTokenToast(ctx, width, height, model);
 }
@@ -833,7 +1138,9 @@ function drawCodex(ctx, width, height, model) {
   const catalog = model.catalog || {};
   const total = model.catalogTotal || 0;
   const unlocked = model.unlockedCount || 0;
-  const pad = Math.max(12, 16 * s);
+  const p = layoutPad(width, height);
+  const pad = p.l;
+  const padR = p.r;
 
   const topEnd = layout.panelTop + layout.captionH + 8;
   const topScrim = ctx.createLinearGradient(0, 0, 0, topEnd);
@@ -852,31 +1159,49 @@ function drawCodex(ctx, width, height, model) {
   ctx.fillStyle = "rgba(16, 12, 9, 0.78)";
   ctx.fillRect(0, dockTop + 8, width, height - dockTop - 8);
 
+  const capY = layout.panelTop;
+  const capH = layout.captionH;
+  fillPlate(ctx, pad, capY, width - pad - padR, capH, 14, "rgba(12, 9, 7, 0.9)");
+  ctx.strokeStyle = "rgba(243, 230, 208, 0.28)";
+  ctx.lineWidth = 1;
+  roundRect(ctx, pad, capY, width - pad - padR, capH, 14);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+  ctx.shadowBlur = 3;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = spec.creamDim;
-  ctx.font = font(Math.max(11, 12 * s), "600");
-  ctx.fillText(`${unlocked} / ${total}`, pad, layout.panelTop + layout.captionH * 0.5);
+  ctx.fillStyle = spec.cream;
+  ctx.font = font(Math.max(12, 13 * s), "700");
+  ctx.fillText(`${unlocked} / ${total}`, pad + 12, capY + capH * 0.5);
   ctx.textAlign = "right";
-  ctx.fillText(`收藏分  ${model.collection ?? 0} / ${model.collectionMax ?? 10000}`, width - pad, layout.panelTop + layout.captionH * 0.5);
+  ctx.fillText(
+    ` ${t("collection")}  ${model.collection ?? 0} / ${model.collectionMax ?? 10000}`,
+    width - padR - 12,
+    capY + capH * 0.5,
+  );
 
   ctx.textAlign = "center";
   if (model.codexSelected && catalog[model.codexSelected]) {
     const entry = catalog[model.codexSelected];
     ctx.fillStyle = spec.cream;
     ctx.font = font(Math.max(16, 18 * s), "800");
-    ctx.fillText(TYPE_LABELS[model.codexSelected] || model.codexSelected, width / 2, layout.panelTop + 12);
+    ctx.fillText(typeLabel(model.codexSelected), width / 2, capY + capH * 0.36);
     ctx.font = font(Math.max(11, 12 * s), "600");
-    ctx.fillStyle = spec.creamDim;
-    ctx.fillText(`切开 ${entry.cuts} 次 · 最佳 ${entry.best}`, width / 2, layout.panelTop + 12 + Math.max(16, 17 * s));
+    ctx.fillStyle = spec.cream;
+    ctx.globalAlpha = 0.88;
+    ctx.fillText(t("catalogCuts", { n: entry.cuts, best: entry.best }), width / 2, capY + capH * 0.72);
+    ctx.globalAlpha = 1;
   } else {
-    ctx.fillStyle = spec.creamDim;
-    ctx.font = font(Math.max(13, 14 * s), "600");
-    ctx.fillText(unlocked ? "点选已解锁的物品" : "切开物体后会收入这里", width / 2, layout.panelTop + layout.captionH * 0.5);
+    ctx.fillStyle = spec.cream;
+    ctx.font = font(Math.max(13, 14 * s), "700");
+    ctx.fillText(unlocked ? t("catalogPick") : t("catalogLocked"), width / 2, capY + capH * 0.5);
   }
+  ctx.restore();
 
   const trophy = model.stallTrophy;
-  const trophyName = trophy ? (model.trophyLabel?.[trophy] || trophy) : "尚未集齐";
+  const trophyName = trophy ? (model.trophyLabel?.[trophy] || trophy) : t("trophyNone");
   const chip = TROPHY_CHIP[trophy] || TROPHY_CHIP.none;
   ctx.font = font(Math.max(12, 13 * s), "800");
   const chipW = Math.max(56, ctx.measureText(trophyName).width + 16);
@@ -941,10 +1266,10 @@ function drawCodex(ctx, width, height, model) {
       ctx.font = font(Math.max(13, 14 * s), "700");
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(TYPE_LABELS[button.type] || button.type, button.x + button.w / 2, button.y + button.h * 0.42);
+      ctx.fillText(typeLabel(button.type), button.x + button.w / 2, button.y + button.h * 0.42);
       ctx.fillStyle = spec.creamDim;
       ctx.font = font(Math.max(10, 11 * s), "600");
-      ctx.fillText(`最佳 ${entry.best}`, button.x + button.w / 2, button.y + button.h * 0.7);
+      ctx.fillText(t("best", { n: entry.best }), button.x + button.w / 2, button.y + button.h * 0.7);
     } else {
       ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
       ctx.fill();
@@ -963,6 +1288,10 @@ function drawCodex(ctx, width, height, model) {
   drawButton(ctx, layout.buttons.mute, {
     hovered: model.hoveredId === "mute",
     pressed: model.pressedId === "mute",
+  });
+  drawButton(ctx, layout.buttons.lang, {
+    hovered: model.hoveredId === "lang",
+    pressed: model.pressedId === "lang",
   });
 }
 
@@ -993,26 +1322,42 @@ function drawTokenToast(ctx, width, height, model) {
   if (!model.tokenToast) return;
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
+  const reason = model.tokenToast.reason ? `${model.tokenToast.reason}` : "";
+  const msg = model.tokenToast.amount
+    ? t("tokenGain", {
+        reason,
+        n: model.tokenToast.amount,
+        unit: t("tokenUnit"),
+      })
+    : reason || t("reward");
   ctx.save();
-  ctx.fillStyle = spec.accent;
+  ctx.font = font(Math.max(14, 16 * s), "800");
+  const textW = Math.min(ctx.measureText(msg).width, width * 0.78);
+  const padX = 16;
+  const boxW = Math.min(width - 24, textW + padX * 2);
+  const boxH = Math.max(36, 40 * s);
+  const menu = model.buttons?.menu;
+  const boxX = (width - boxW) / 2;
+  const boxY = menu ? Math.max(12, menu.y - boxH - 12) : height * 0.16;
+  fillPlate(ctx, boxX, boxY, boxW, boxH, boxH / 2, "rgba(12, 9, 7, 0.94)");
+  ctx.strokeStyle = "rgba(243, 230, 208, 0.45)";
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, boxX, boxY, boxW, boxH, boxH / 2);
+  ctx.stroke();
+  ctx.fillStyle = spec.cream;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = font(Math.max(14, 16 * s), "800");
-  const reason = model.tokenToast.reason ? `${model.tokenToast.reason}  ` : "";
-  const msg = model.tokenToast.amount
-    ? `${reason}+${model.tokenToast.amount}币`
-    : model.tokenToast.reason || "奖励";
-  ctx.fillText(msg, width / 2, height * 0.2);
+  ctx.fillText(msg, width / 2, boxY + boxH / 2, boxW - padX * 2);
   ctx.restore();
 }
 
 function drawHud(ctx, width, height, model) {
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
-  const pad = Math.max(12, 16 * s);
+  const p = layoutPad(width, height);
   const muteH = Math.max(36, 40 * s);
-  const x = pad;
-  const y = pad + muteH + Math.max(8, 10 * s);
+  const x = p.l;
+  const y = p.t + muteH + Math.max(8, 10 * s);
   const panelW = Math.max(132, 148 * s);
   const panelH = Math.max(108, 118 * s);
 
@@ -1030,7 +1375,7 @@ function drawHud(ctx, width, height, model) {
 
   ctx.font = font(Math.max(13, 14 * s), "700");
   ctx.fillStyle = spec.cream;
-  ctx.fillText("分数", x, y + Math.max(30, 36 * s));
+  ctx.fillText(t("score"), x, y + Math.max(30, 36 * s));
 
   const comboY = y + Math.max(50, 58 * s);
   const comboHot = model.combo >= 3;
@@ -1038,18 +1383,31 @@ function drawHud(ctx, width, height, model) {
     ctx.save();
     ctx.globalAlpha = 0.18 + Math.sin(model.time * 6) * 0.06;
     ctx.fillStyle = spec.accent;
-    roundRect(ctx, pad - 6, comboY - 4, Math.max(100, 118 * s), Math.max(26, 30 * s), 10);
+    roundRect(ctx, x - 6, comboY - 4, Math.max(100, 118 * s), Math.max(26, 30 * s), 10);
     ctx.fill();
     ctx.restore();
   }
   ctx.fillStyle = comboHot ? spec.accent : spec.cream;
   ctx.font = font(Math.max(15, comboHot ? 18 * s : 16 * s), "800");
-  ctx.fillText(`连击  ${model.combo}`, x, comboY);
+  ctx.fillText(t("combo", { n: model.combo }), x, comboY);
 
   ctx.fillStyle = spec.cream;
   ctx.font = font(Math.max(13, 14 * s), "700");
-  ctx.fillText(`代币  ${model.tokens ?? 0}`, x, comboY + Math.max(28, 32 * s));
+  ctx.fillText(t("tokens", { n: model.tokens ?? 0 }), x, comboY + Math.max(28, 32 * s));
   ctx.restore();
+
+  if (model.itemLoading) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const bw = Math.max(132, 148 * s);
+    const bh = Math.max(40, 44 * s);
+    fillPlate(ctx, (width - bw) / 2, height * 0.46, bw, bh, 14);
+    ctx.fillStyle = spec.cream;
+    ctx.font = font(Math.max(15, 16 * s), "800");
+    ctx.fillText(t("loading"), width / 2, height * 0.46 + bh / 2);
+    ctx.restore();
+  }
 
   drawTokenToast(ctx, width, height, model);
 
@@ -1117,7 +1475,7 @@ function drawOrbitPad(ctx, pad, { active, hover, time, nudge }) {
   ctx.font = font(Math.max(13, pad.w * 0.12), "700");
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("转动", pad.x + pad.w / 2, pad.y + pad.h - Math.max(14, pad.h * 0.14));
+  ctx.fillText(t("rotate"), pad.x + pad.w / 2, pad.y + pad.h - Math.max(14, pad.h * 0.14));
   ctx.restore();
 }
 
@@ -1166,7 +1524,7 @@ function drawHint(ctx, width, height, model) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = font(Math.max(11, 12 * s), "800");
-  ctx.fillText("怎么玩", x + 12 + tagW / 2, y + 10 + tagH / 2 + 0.5);
+  ctx.fillText(t("how"), x + 12 + tagW / 2, y + 10 + tagH / 2 + 0.5);
 
   const iconX = x + 28;
   const iconY = y + boxH * 0.64;
@@ -1188,9 +1546,9 @@ function drawHint(ctx, width, height, model) {
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.font = font(Math.max(15, 17 * s), "800");
-  ctx.fillText("手指划过正中", x + 52 * s, y + boxH * 0.54);
+  ctx.fillText(t("hintCut"), x + 52 * s, y + boxH * 0.54);
   ctx.font = font(Math.max(12, 13 * s), "600");
-  ctx.fillText("右边转盘可以转动", x + 52 * s, y + boxH * 0.76);
+  ctx.fillText(t("hintSpin"), x + 52 * s, y + boxH * 0.76);
   ctx.restore();
 }
 
@@ -1199,14 +1557,14 @@ function drawFeedback(ctx, width, height, model) {
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
   const { baseScore, gained, grade, combo, miss, fatal, shielded } = model.lastResult;
-  const t = model.feedbackT;
+  const ft = model.feedbackT;
   const perfect = !miss && baseScore >= CONFIG.score.perfectScore;
   const milestone = !miss && Boolean(model.lastResult.comboTitle);
   const nearMiss = Boolean(fatal) && !miss && baseScore >= 70;
 
   if (!miss && model.centerScreen && model.lastResult.cutX != null) {
     ctx.save();
-    ctx.globalAlpha = 0.7 * (t < 0.85 ? 1 : 1 - (t - 0.85) / 0.15);
+    ctx.globalAlpha = 0.7 * (ft < 0.85 ? 1 : 1 - (ft - 0.85) / 0.15);
     ctx.strokeStyle = spec.accent;
     ctx.lineWidth = strokePx(model, CONFIG.ui.strokeMark ?? 1.7);
     const cutX = model.lastResult.cutX;
@@ -1232,7 +1590,7 @@ function drawFeedback(ctx, width, height, model) {
   if (perfect) {
     const rings = 3;
     for (let i = 0; i < rings; i += 1) {
-      const rt = Math.min(1, t * 1.8 - i * 0.12);
+      const rt = Math.min(1, ft * 1.8 - i * 0.12);
       if (rt <= 0) continue;
       ctx.save();
       ctx.globalAlpha = (1 - rt) * 0.45;
@@ -1246,16 +1604,16 @@ function drawFeedback(ctx, width, height, model) {
   }
   const scale =
     (perfect ? CONFIG.feedback.popupPeakScale + 0.2 : CONFIG.feedback.popupPeakScale) -
-    0.35 * easeOut(t);
-  const alpha = t < 0.85 ? 1 : 1 - (t - 0.85) / 0.15;
+    0.35 * easeOut(ft);
+  const alpha = ft < 0.85 ? 1 : 1 - (ft - 0.85) / 0.15;
 
-  if (perfect && t < 0.22) {
-    ctx.fillStyle = `rgba(255, 236, 210, ${0.18 * (1 - t / 0.22)})`;
+  if (perfect && ft < 0.22) {
+    ctx.fillStyle = `rgba(255, 236, 210, ${0.18 * (1 - ft / 0.22)})`;
     ctx.fillRect(0, 0, width, height);
   }
 
-  if (fatal && t < 0.38) {
-    ctx.fillStyle = `rgba(140, 18, 12, ${0.22 * (1 - t / 0.38)})`;
+  if (fatal && ft < 0.38) {
+    ctx.fillStyle = `rgba(140, 18, 12, ${0.22 * (1 - ft / 0.38)})`;
     ctx.fillRect(0, 0, width, height);
   }
 
@@ -1277,7 +1635,7 @@ function drawFeedback(ctx, width, height, model) {
     if (gained > baseScore) {
       ctx.fillStyle = spec.accent;
       ctx.font = font(Math.max(13, 14 * s), "600");
-      ctx.fillText(`+${gained}  （连击 ×${combo}）`, 0, Math.max(50, 62 * s));
+      ctx.fillText(`+${gained}  （${t("comboX", { n: combo })}）`, 0, Math.max(50, 62 * s));
     }
 
     const leftPct = Math.round((model.lastResult.leftShare ?? 0.5) * 100);
@@ -1286,46 +1644,46 @@ function drawFeedback(ctx, width, height, model) {
     ctx.font = font(Math.max(12, 13 * s), "600");
     const nx = Math.abs(model.lastResult.nx ?? 1);
     const ny = Math.abs(model.lastResult.ny ?? 0);
-    let volumeLabel = `正中  ${leftPct}%  ·  ${rightPct}%`;
-    if (ny > nx * 1.25 && ny > 0.55) volumeLabel = `正中  下${leftPct}%  ·  上${rightPct}%`;
-    else if (nx > ny * 1.25 && nx > 0.55) volumeLabel = `正中  左${leftPct}%  ·  右${rightPct}%`;
+    let volumeLabel = t("volMid", { a: leftPct, b: rightPct });
+    if (ny > nx * 1.25 && ny > 0.55) volumeLabel = t("volTB", { a: leftPct, b: rightPct });
+    else if (nx > ny * 1.25 && nx > 0.55) volumeLabel = t("volLR", { a: leftPct, b: rightPct });
     ctx.fillText(volumeLabel, 0, Math.max(70, 84 * s));
 
     if (model.lastResult.codexNew) {
       ctx.fillStyle = spec.accent;
       ctx.font = font(Math.max(13, 15 * s), "800");
-      ctx.fillText("收入图鉴", 0, Math.max(88, 106 * s));
+      ctx.fillText(t("intoCodex"), 0, Math.max(88, 106 * s));
     }
 
     if (shielded) {
       ctx.fillStyle = spec.accent;
       ctx.font = font(Math.max(15, 18 * s), "800");
-      ctx.fillText("护盾生效，这局保住了", 0, Math.max(94, 112 * s));
+      ctx.fillText(t("shield"), 0, Math.max(94, 112 * s));
     } else if (nearMiss) {
       ctx.fillStyle = spec.accent;
       ctx.font = font(Math.max(15, 18 * s), "800");
-      ctx.fillText("就差一点点", 0, Math.max(94, 112 * s));
+      ctx.fillText(t("close"), 0, Math.max(94, 112 * s));
     }
   } else if (fatal) {
     ctx.fillStyle = spec.accent;
     ctx.font = font(Math.max(15, 18 * s), "800");
-    ctx.fillText("连击断开", 0, Math.max(36, 44 * s));
+    ctx.fillText(t("comboBreak"), 0, Math.max(36, 44 * s));
   }
 
   if (fatal) {
     ctx.fillStyle = spec.cream;
     ctx.font = font(Math.max(13, 14 * s), "700");
-    ctx.fillText("点再试刀，切同一件", 0, miss ? Math.max(58, 70 * s) : Math.max(112, 132 * s));
+    ctx.fillText(t("retryHint"), 0, miss ? Math.max(58, 70 * s) : Math.max(112, 132 * s));
   }
 
-  if (milestone && t < 0.7) {
+  if (milestone && ft < 0.7) {
     ctx.restore();
     ctx.save();
-    ctx.globalAlpha = 1 - t / 0.7;
+    ctx.globalAlpha = 1 - ft / 0.7;
     ctx.fillStyle = spec.accent;
     ctx.textAlign = "center";
     ctx.font = font(Math.max(28, 36 * s), "800");
-    ctx.fillText(model.lastResult.comboTitle || `连击 ×${combo}`, width / 2, height * 0.16);
+    ctx.fillText(model.lastResult.comboTitle || t("comboX", { n: combo }), width / 2, height * 0.16);
   }
   ctx.restore();
 }
@@ -1346,7 +1704,7 @@ function drawGameOver(ctx, width, height, model) {
 
   ctx.fillStyle = spec.accent;
   ctx.font = font(Math.max(16, 18 * s), "700");
-  ctx.fillText(summary.newRecord ? "新纪录！" : "连击断开", width / 2, height * 0.2);
+  ctx.fillText(summary.newRecord ? t("newRecord") : t("comboBreak"), width / 2, height * 0.2);
 
   ctx.fillStyle = spec.cream;
   ctx.font = font(Math.max(36, 48 * s), "800");
@@ -1354,20 +1712,20 @@ function drawGameOver(ctx, width, height, model) {
 
   ctx.fillStyle = spec.creamDim;
   ctx.font = font(Math.max(14, 16 * s), "600");
-  ctx.fillText(summary.rank || "新刀", width / 2, height * 0.38);
+  ctx.fillText(summary.rank || t("newBlade"), width / 2, height * 0.38);
   ctx.fillText(
-    `最高连击 ${summary.maxCombo ?? 0}    最佳一刀 ${summary.bestCut ?? 0}`,
+    t("maxCombo", { combo: summary.maxCombo ?? 0, cut: summary.bestCut ?? 0 }),
     width / 2,
     height * 0.44,
   );
   ctx.fillText(
-    `收藏分  ${summary.collection ?? model.collection ?? 0} / ${summary.collectionMax ?? model.collectionMax ?? 10000}`,
+    `${t("collection")}  ${summary.collection ?? model.collection ?? 0} / ${summary.collectionMax ?? model.collectionMax ?? 10000}`,
     width / 2,
     height * 0.48,
   );
   if (summary.worlds) {
     ctx.fillText(
-      `走到 ${summary.lastTheme || ""}（${summary.worlds}/${summary.worldTotal} 站）`,
+      t("walked", { name: summary.lastTheme || "", a: summary.worlds, b: summary.worldTotal }),
       width / 2,
       height * 0.52,
     );
@@ -1384,6 +1742,10 @@ function drawGameOver(ctx, width, height, model) {
   drawButton(ctx, model.buttons.mute, {
     hovered: model.hoveredId === "mute",
     pressed: model.pressedId === "mute",
+  });
+  drawButton(ctx, model.buttons.lang, {
+    hovered: model.hoveredId === "lang",
+    pressed: model.pressedId === "lang",
   });
   drawTokenToast(ctx, width, height, model);
 }
@@ -1420,40 +1782,42 @@ function drawShop(ctx, width, height, model) {
   ctx.textBaseline = "middle";
   ctx.fillStyle = spec.cream;
   ctx.font = font(Math.max(26, 32 * s), "800");
-  ctx.fillText("商店", width / 2, panelY + Math.max(22, 26 * s));
+  ctx.fillText(t("shop"), width / 2, panelY + Math.max(22, 26 * s));
 
   ctx.fillStyle = spec.accent;
   ctx.font = font(Math.max(16, 18 * s), "800");
-  ctx.fillText(`代币  ${model.tokens ?? 0}`, width / 2, panelY + Math.max(48, 54 * s));
+  ctx.fillText(t("tokens", { n: model.tokens ?? 0 }), width / 2, panelY + Math.max(48, 54 * s));
 
   if (buy) {
     ctx.textAlign = "left";
     ctx.fillStyle = spec.creamDim;
     ctx.font = font(Math.max(12, 13 * s), "700");
-    ctx.fillText("购买", buy.x, buy.y - Math.max(14, 16 * s));
+    ctx.fillText(t("buy"), buy.x, buy.y - Math.max(14, 16 * s));
   }
   if (share) {
     ctx.textAlign = "left";
     ctx.fillStyle = spec.cream;
     ctx.font = font(Math.max(12, 13 * s), "700");
-    ctx.fillText("每日分享", share.x, share.y - Math.max(16, 18 * s));
+    ctx.fillText(t("shareDaily"), share.x, share.y - Math.max(16, 18 * s));
     ctx.textAlign = "right";
     ctx.fillStyle = spec.creamDim;
     ctx.font = font(Math.max(11, 12 * s), "600");
-    ctx.fillText(`每渠道 +${shareN}币 · 一天一次`, share.x + panelW, share.y - Math.max(16, 18 * s));
+    ctx.fillText(t("shareOnce", { n: shareN }), share.x + panelW, share.y - Math.max(16, 18 * s));
   }
   if (ad) {
     ctx.textAlign = "left";
     ctx.fillStyle = spec.cream;
     ctx.font = font(Math.max(12, 13 * s), "700");
-    ctx.fillText("看广告", ad.x, ad.y - Math.max(16, 18 * s));
+    ctx.fillText(t("watchAd"), ad.x, ad.y - Math.max(16, 18 * s));
     ctx.textAlign = "right";
     ctx.fillStyle = spec.creamDim;
     ctx.font = font(Math.max(11, 12 * s), "600");
-    ctx.fillText(`每次 +${adN}币 · 未开放`, ad.x + panelW, ad.y - Math.max(16, 18 * s));
+    const adsHint =
+      model.adsStatus === "on" ? t("adsOn") : model.adsStatus === "mock" ? t("adsMock") : t("adsOff");
+    ctx.fillText(t("adLine", { n: adN, hint: adsHint }), ad.x + panelW, ad.y - Math.max(16, 18 * s));
   }
 
-  for (const id of ["buy-retry", "buy-guide", "buy-summon", "share-fb", "share-x", "share-threads", "ad-token", "menu", "mute"]) {
+  for (const id of ["buy-retry", "buy-guide", "buy-summon", "share-fb", "share-x", "share-threads", "ad-token", "menu", "mute", "lang"]) {
     if (!model.buttons[id]) continue;
     drawButton(ctx, model.buttons[id], {
       hovered: model.hoveredId === id,
@@ -1475,13 +1839,13 @@ function drawSummon(ctx, width, height, model) {
   ctx.textBaseline = "middle";
   ctx.fillStyle = spec.cream;
   ctx.font = font(Math.max(22, 26 * s), "800");
-  ctx.fillText("点名一件已切开的物品", width / 2, height * 0.16);
+  ctx.fillText(t("summonTitle"), width / 2, height * 0.16);
   ctx.fillStyle = spec.creamDim;
   ctx.font = font(Math.max(12, 13 * s), "600");
-  ctx.fillText(`隐藏款另加 ${model.prices?.summonSecret ?? 15} 币，每天一次`, width / 2, height * 0.205);
+  ctx.fillText(t("summonSecret", { n: model.prices?.summonSecret ?? 15 }), width / 2, height * 0.205);
   if (meta.maxScroll > 0) {
     ctx.font = font(Math.max(11, 12 * s), "600");
-    ctx.fillText("上下滑动查看", width / 2, height * 0.238);
+    ctx.fillText(t("summonScroll"), width / 2, height * 0.238);
   }
 
   const gridTop = meta.gridTop ?? height * 0.26;
@@ -1527,11 +1891,13 @@ function drawAchieve(ctx, width, height, model) {
   const list = model.achieveList || [];
   const unlocked = model.achieveUnlocked || {};
   const back = model.buttons.menu;
-  const pad = Math.max(12, 16 * s);
+  const p = layoutPad(width, height);
+  const pad = p.l;
+  const padR = p.r;
   const panelX = pad;
-  const panelW = width - pad * 2;
-  const panelY = pad;
-  const panelBottom = (back?.y || height - pad - 46) - 10;
+  const panelW = width - pad - padR;
+  const panelY = p.t;
+  const panelBottom = (back?.y || height - p.b - 46) - 10;
 
   ctx.fillStyle = "rgba(12, 9, 7, 0.62)";
   ctx.fillRect(0, 0, width, height);
@@ -1546,15 +1912,18 @@ function drawAchieve(ctx, width, height, model) {
   ctx.textBaseline = "middle";
   ctx.fillStyle = spec.cream;
   ctx.font = font(Math.max(24, 30 * s), "800");
-  ctx.fillText("成就", width / 2, panelY + Math.max(22, 26 * s));
+  ctx.fillText(t("achieve"), width / 2, panelY + Math.max(22, 26 * s));
   ctx.fillStyle = spec.accent;
   ctx.font = font(Math.max(13, 14 * s), "700");
-  ctx.fillText(`解锁得代币   ${done}/${list.length}`, width / 2, panelY + Math.max(46, 52 * s));
+  ctx.fillText(t("achieveSub", { a: done, b: list.length }), width / 2, panelY + Math.max(46, 52 * s));
+  ctx.fillStyle = spec.creamDim;
+  ctx.font = font(Math.max(11, 12 * s), "600");
+  ctx.fillText(t("achieveWear"), width / 2, panelY + Math.max(64, 70 * s));
 
   const cols = 2;
   const rows = Math.max(1, Math.ceil(list.length / cols));
   const gap = 8;
-  const gridY = panelY + Math.max(64, 72 * s);
+  const gridY = panelY + Math.max(78, 86 * s);
   const gridH = panelBottom - gridY - 8;
   const cellW = (panelW - 24 - gap) / cols;
   const cellH = Math.min(56, (gridH - gap * (rows - 1)) / rows);
@@ -1567,19 +1936,20 @@ function drawAchieve(ctx, width, height, model) {
     const x = startX + col * (cellW + gap);
     const y = gridY + r * (cellH + gap);
     const on = Boolean(unlocked[row.id]);
+    const worn = on && model.boardTitleId === row.id;
     roundRect(ctx, x, y, cellW, cellH, 12);
-    ctx.fillStyle = on ? "rgba(224, 122, 61, 0.22)" : "rgba(243, 230, 208, 0.06)";
+    ctx.fillStyle = worn ? "rgba(224, 122, 61, 0.38)" : on ? "rgba(224, 122, 61, 0.22)" : "rgba(243, 230, 208, 0.06)";
     ctx.fill();
-    ctx.strokeStyle = on ? "rgba(224, 122, 61, 0.7)" : "rgba(243, 230, 208, 0.16)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = worn ? spec.accent : on ? "rgba(224, 122, 61, 0.7)" : "rgba(243, 230, 208, 0.16)";
+    ctx.lineWidth = worn ? 2 : 1;
     ctx.stroke();
     ctx.textAlign = "left";
     ctx.fillStyle = on ? spec.cream : "rgba(243, 230, 208, 0.45)";
     ctx.font = font(Math.max(12, 13 * s), "800");
-    ctx.fillText(row.title, x + 10, y + cellH * 0.38);
+    ctx.fillText(worn ? t("wearing", { name: achieveTitle(row.id) }) : achieveTitle(row.id), x + 10, y + cellH * 0.38);
     ctx.fillStyle = on ? "rgba(243, 230, 208, 0.78)" : spec.creamDim;
     ctx.font = font(Math.max(10, 11 * s), "600");
-    ctx.fillText(row.hint, x + 10, y + cellH * 0.72);
+    ctx.fillText(achieveHint(row.id), x + 10, y + cellH * 0.72);
     ctx.textAlign = "right";
     ctx.fillStyle = on ? spec.cream : spec.accent;
     ctx.font = font(Math.max(11, 12 * s), "800");
@@ -1593,6 +1963,133 @@ function drawAchieve(ctx, width, height, model) {
   drawButton(ctx, model.buttons.mute, {
     hovered: model.hoveredId === "mute",
     pressed: model.pressedId === "mute",
+  });
+  drawButton(ctx, model.buttons.lang, {
+    hovered: model.hoveredId === "lang",
+    pressed: model.pressedId === "lang",
+  });
+  drawTokenToast(ctx, width, height, model);
+}
+
+function drawBoard(ctx, width, height, model) {
+  const s = uiScale(width, height);
+  const spec = CONFIG.ui;
+  const back = model.buttons.menu;
+  const p = layoutPad(width, height);
+  const pad = p.l;
+  const padR = p.r;
+  const panelX = pad;
+  const panelW = width - pad - padR;
+  const panelY = p.t;
+  const panelBottom = (back?.y || height - p.b - 46) - 10;
+
+  ctx.fillStyle = "rgba(12, 9, 7, 0.62)";
+  ctx.fillRect(0, 0, width, height);
+  fillPlate(ctx, panelX, panelY, panelW, panelBottom - panelY, 22, "rgba(16, 12, 9, 0.82)");
+  ctx.strokeStyle = "rgba(243, 230, 208, 0.22)";
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, panelX, panelY, panelW, panelBottom - panelY, 22);
+  ctx.stroke();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = spec.cream;
+  ctx.font = font(Math.max(24, 30 * s), "800");
+  ctx.fillText(t("boardTitle"), width / 2, panelY + Math.max(22, 26 * s));
+  ctx.fillStyle = spec.accent;
+  ctx.font = font(Math.max(12, 13 * s), "700");
+  const place = model.boardCountryName || t("boardUnknown");
+  ctx.fillText(
+    model.boardScope === "global" ? t("boardWorldScore") : t("boardHomeScore", { place }),
+    width / 2,
+    panelY + Math.max(42, 48 * s),
+  );
+  ctx.fillStyle = spec.cream;
+  ctx.font = font(Math.max(12, 13 * s), "700");
+  const you = model.boardName ? t("nickLine", { name: model.boardName }) : t("nickEmpty");
+  const worn = model.boardTitle ? ` · ${model.boardTitle}` : "";
+  ctx.fillText(`${you}${worn}`, width / 2, panelY + Math.max(60, 68 * s), panelW - 24);
+
+  drawButton(ctx, model.buttons["board-home"], {
+    hovered: model.hoveredId === "board-home",
+    pressed: model.pressedId === "board-home",
+  });
+  drawButton(ctx, model.buttons["board-global"], {
+    hovered: model.hoveredId === "board-global",
+    pressed: model.pressedId === "board-global",
+  });
+
+  const tabs = model.buttons["board-home"];
+  const listY = (tabs?.y || panelY + 90) + (tabs?.h || 44) + 12;
+  const listH = panelBottom - listY - 8;
+  if (model.boardError) {
+    ctx.fillStyle = spec.cream;
+    ctx.font = font(Math.max(14, 15 * s), "700");
+    ctx.fillText(model.boardError, width / 2, listY + 40);
+  } else if (model.boardLoading && !model.boardRows?.length) {
+    ctx.fillStyle = spec.creamDim;
+    ctx.font = font(Math.max(14, 15 * s), "700");
+    ctx.fillText(t("boardLoad"), width / 2, listY + 40);
+  } else {
+    const rows = model.boardRows || [];
+    const rowH = Math.min(42, Math.max(32, listH / 11));
+    if (!rows.length) {
+      ctx.fillStyle = spec.creamDim;
+      ctx.font = font(Math.max(14, 15 * s), "700");
+      ctx.fillText(t("boardEmpty"), width / 2, listY + 40);
+    }
+    for (let i = 0; i < Math.min(rows.length, 10); i += 1) {
+      const row = rows[i];
+      const y = listY + i * rowH;
+      if (y + rowH > panelBottom - 4) break;
+      const hasTitle = Boolean(row.title);
+      ctx.textAlign = "left";
+      ctx.fillStyle = row.me ? spec.accent : spec.cream;
+      ctx.font = font(Math.max(13, 14 * s), "800");
+      ctx.fillText(`${row.rank}`, panelX + 18, y + rowH * 0.5);
+      ctx.font = font(Math.max(13, 14 * s), "700");
+      ctx.fillText(row.name, panelX + 48, y + (hasTitle ? rowH * 0.34 : rowH * 0.5));
+      if (hasTitle) {
+        ctx.fillStyle = spec.accent;
+        ctx.font = font(Math.max(10, 11 * s), "700");
+        ctx.fillText(row.title ? achieveTitle(titleIdFromStored(row.title)) || row.title : "", panelX + 48, y + rowH * 0.72);
+      }
+      ctx.textAlign = "right";
+      ctx.fillStyle = row.me ? spec.accent : spec.creamDim;
+      ctx.font = font(Math.max(11, 12 * s), "600");
+      ctx.fillText(row.countryName || row.country || "", panelX + panelW - 88, y + rowH * 0.5);
+      ctx.fillStyle = row.me ? spec.accent : spec.cream;
+      ctx.font = font(Math.max(13, 14 * s), "800");
+      ctx.fillText(String(row.score), panelX + panelW - 18, y + rowH * 0.5);
+    }
+  }
+
+  if (model.boardMe) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = spec.cream;
+    ctx.font = font(Math.max(12, 13 * s), "700");
+    ctx.fillText(t("yourRank", { rank: model.boardMe.rank, score: model.boardMe.score }), width / 2, panelBottom - 16);
+  }
+
+  drawButton(ctx, model.buttons["board-rename"], {
+    hovered: model.hoveredId === "board-rename",
+    pressed: model.pressedId === "board-rename",
+  });
+  drawButton(ctx, model.buttons["board-title"], {
+    hovered: model.hoveredId === "board-title",
+    pressed: model.pressedId === "board-title",
+  });
+  drawButton(ctx, model.buttons.menu, {
+    hovered: model.hoveredId === "menu",
+    pressed: model.pressedId === "menu",
+  });
+  drawButton(ctx, model.buttons.mute, {
+    hovered: model.hoveredId === "mute",
+    pressed: model.pressedId === "mute",
+  });
+  drawButton(ctx, model.buttons.lang, {
+    hovered: model.hoveredId === "lang",
+    pressed: model.pressedId === "lang",
   });
   drawTokenToast(ctx, width, height, model);
 }
@@ -1611,29 +2108,43 @@ function drawSparks(ctx, sparks) {
 
 export function renderUI(ctx, model) {
   const { width, height, state } = model;
+  const paintOverlay = () => {
+    if (!model.paused && model.pendingPrompt) drawBuyConfirm(ctx, width, height, model);
+  };
 
   if (state === "menu") {
     drawMenu(ctx, width, height, model);
+    paintOverlay();
     return;
   }
 
   if (state === "shop") {
     drawShop(ctx, width, height, model);
+    paintOverlay();
     return;
   }
 
   if (state === "achieve") {
     drawAchieve(ctx, width, height, model);
+    paintOverlay();
+    return;
+  }
+
+  if (state === "board") {
+    drawBoard(ctx, width, height, model);
+    paintOverlay();
     return;
   }
 
   if (state === "codex") {
     drawCodex(ctx, width, height, model);
+    paintOverlay();
     return;
   }
 
   if (state === "gameover") {
     drawGameOver(ctx, width, height, model);
+    paintOverlay();
     return;
   }
 
@@ -1641,6 +2152,7 @@ export function renderUI(ctx, model) {
   drawSparks(ctx, model.sparks);
   if (model.summonPicker) {
     drawSummon(ctx, width, height, model);
+    paintOverlay();
     return;
   }
 
@@ -1655,7 +2167,7 @@ export function renderUI(ctx, model) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = font(Math.max(13, 15 * s), "700");
-    ctx.fillText(`第 ${station} 站`, width / 2, height * 0.11);
+    ctx.fillText(t("station", { n: station }), width / 2, height * 0.11);
     ctx.font = font(Math.max(24, 32 * s), "800");
     ctx.fillText(model.themeName, width / 2, height * 0.155);
     ctx.restore();
@@ -1696,10 +2208,10 @@ function drawPause(ctx, width, height, model) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = font(Math.max(28, 36 * s), "800");
-  ctx.fillText("暂停", width / 2, height * 0.4);
+  ctx.fillText(t("pause"), width / 2, height * 0.4);
   ctx.fillStyle = spec.creamDim;
   ctx.font = font(Math.max(14, 16 * s), "600");
-  ctx.fillText("切到别处时会自动停下", width / 2, height * 0.4 + Math.max(28, 34 * s));
+  ctx.fillText(t("pauseHint"), width / 2, height * 0.4 + Math.max(28, 34 * s));
   if (model.buttons.resume) {
     drawButton(ctx, model.buttons.resume, {
       hovered: model.hoveredId === "resume",
@@ -1709,5 +2221,9 @@ function drawPause(ctx, width, height, model) {
   drawButton(ctx, model.buttons.mute, {
     hovered: model.hoveredId === "mute",
     pressed: model.pressedId === "mute",
+  });
+  drawButton(ctx, model.buttons.lang, {
+    hovered: model.hoveredId === "lang",
+    pressed: model.pressedId === "lang",
   });
 }

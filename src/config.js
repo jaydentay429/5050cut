@@ -1,5 +1,5 @@
 /** 所有可调数值集中放这里，后续打磨手感只改这一份。 */
-import { catalogSpec, themeBlock } from "./worlds.js?v=99";
+import { catalogSpec, themeBlock } from "./worlds.js?v=101";
 
 export const CONFIG = {
   backgroundColor: "#1c1712",
@@ -25,6 +25,9 @@ export const CONFIG = {
     fruitAppleLength: 0.52,
     fruitScaleMin: 0.16,
     fruitScaleMax: 2.4,
+    /** 对照这个画面比例来收竖屏物品；更窄时略缩小，避免一出现就撑满宽度。 */
+    itemScaleRefAspect: 0.78,
+    portraitItemScaleMin: 0.74,
     /** 保证物体长轴在竖屏里也能完整入画。 */
     fitMargin: 1.45,
     fogNear: 18,
@@ -94,6 +97,14 @@ export const CONFIG = {
     adTokens: 3,
     prices: { retry: 5, guide: 2, summon: 10, summonSecret: 15 },
     collectionMax: 10000,
+  },
+
+  ads: {
+    /** Google AdSense / H5 Games 的 ca-pub-。空则线上不播广告，本机商店广告走模拟。 */
+    client: "",
+    minPlaySec: 90,
+    cooldownSec: 120,
+    maxPerSession: 8,
   },
 
   feedback: {

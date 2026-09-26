@@ -24,9 +24,11 @@ await mkdir(dist, { recursive: true });
 const copies = [
   "index.html",
   "style.css",
-  "favicon.svg",
+  "privacy.html",
+  "ads.txt",
   "_headers",
   "_redirects",
+  "functions",
   "src",
   "vendor",
   "assets",

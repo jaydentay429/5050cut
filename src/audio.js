@@ -3,7 +3,7 @@
  */
 import { CONFIG } from "./config.js";
 import { loadMuted, saveMuted } from "./storage.js";
-import { worldOf } from "./worlds.js?v=99";
+import { worldOf } from "./worlds.js?v=101";
 
 let ctx = null;
 let master = null;

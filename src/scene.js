@@ -3,24 +3,48 @@
  * WebGL 只出现在这一文件（以及它调用的 catalog / sliceFace）。
  */
 import * as THREE from "three";
-import { CONFIG } from "./config.js?v=100";
+import { CONFIG } from "./config.js?v=109";
 import {
   createMaterials,
   createPlaneCap,
   createWholeObject,
   disposeMaterials,
   objectExtents,
-} from "./catalog.js?v=69";
-import { fruitEnvMap, fruitStallMaps, isFruitType, worldBackdrop } from "./fruitAssets.js?v=102";
-import { volumeShareFromObject } from "./meshVolume.js";
+} from "./catalog.js?v=77";
+import { fruitEnvMap, fruitStallMaps, isFruitType, worldBackdrop } from "./fruitAssets.js?v=115";
+import { getItem } from "./worlds.js?v=101";
+import { volumeShareFromObject } from "./meshVolume.js?v=74";
 import { makeAwningTexture, makeThemeBoard, makeThemeGround, makeThemeWall } from "./sliceFace.js";
 
 function disposeObject(root) {
   if (!root) return;
+  const geos = new Set();
+  const mats = new Set();
   root.traverse((node) => {
-    if (node.geometry) node.geometry.dispose();
+    if (!node.isMesh) return;
+    if (node.geometry && !node.geometry.userData?.shared) geos.add(node.geometry);
+    for (const mat of [].concat(node.material)) {
+      if (!mat || mat.userData?.persist) continue;
+      mats.add(mat);
+    }
   });
+  for (const geo of geos) geo.dispose();
+  for (const mat of mats) {
+    mat.envMap = null;
+    mat.dispose();
+  }
   root.parent?.remove(root);
+}
+
+function cutWalkMeshes(root, visit) {
+  const proxies = [];
+  const rest = [];
+  root.traverse((node) => {
+    if (!node.isMesh || !node.geometry?.attributes?.position) return;
+    if (node.userData.cutProxy) proxies.push(node);
+    else rest.push(node);
+  });
+  for (const node of proxies.length ? proxies : rest) visit(node);
 }
 
 function easeOut(t) {
@@ -33,7 +57,7 @@ export function createScene(canvas) {
     canvas,
     antialias: !coarse,
     alpha: false,
-    powerPreference: "high-performance",
+    powerPreference: coarse ? "low-power" : "default",
   });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -42,6 +66,14 @@ export function createScene(canvas) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   renderer.setClearColor(CONFIG.backgroundColor, 1);
+  let gpuLost = false;
+  canvas.addEventListener("webglcontextlost", (event) => {
+    event.preventDefault();
+    gpuLost = true;
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    gpuLost = false;
+  });
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(CONFIG.backgroundColor);
@@ -256,6 +288,8 @@ export function createScene(canvas) {
     cutWorldNormal: null,
     seatY: 0,
     themeId: "fruit",
+    viewScale: 1,
+    playScale: 1,
   };
 
   function restHeight() {
@@ -329,6 +363,11 @@ export function createScene(canvas) {
     state.whole.position.z = 0;
     objectRoot.add(state.whole);
     state.whole.quaternion.identity();
+    state.viewScale = 1;
+    state.playScale = 1;
+    const viewScale = viewItemScale();
+    if (viewScale !== 1) state.whole.scale.multiplyScalar(viewScale);
+    state.viewScale = viewScale;
     centerOnPivot(state.whole);
     state.whole.position.y = state.seatY + (state.inspect ? 0 : CONFIG.scene.dropHeight);
     dressing.visible = false;
@@ -383,17 +422,13 @@ export function createScene(canvas) {
     const a = new THREE.Vector3();
     const b = new THREE.Vector3();
     const c = new THREE.Vector3();
-    const cutEdge = (p, q) => {
-      const dp = n.dot(p) - d;
-      const dq = n.dot(q) - d;
-      if (dp === 0) hits.push(p.clone());
+    const cutEdge = (p, q, dp, dq) => {
       if (dp * dq >= 0) return;
       const t = dp / (dp - dq);
       hits.push(p.clone().lerp(q, t));
     };
     root.updateWorldMatrix(true, true);
-    root.traverse((node) => {
-      if (!node.isMesh || !node.geometry?.attributes?.position) return;
+    cutWalkMeshes(root, (node) => {
       const pos = node.geometry.attributes.position;
       const idx = node.geometry.index;
       const toLocal = (out, i) => {
@@ -405,9 +440,13 @@ export function createScene(canvas) {
         toLocal(a, i0);
         toLocal(b, i1);
         toLocal(c, i2);
-        cutEdge(a, b);
-        cutEdge(b, c);
-        cutEdge(c, a);
+        const da = n.dot(a) - d;
+        const db = n.dot(b) - d;
+        const dc = n.dot(c) - d;
+        if ((da > 0 && db > 0 && dc > 0) || (da < 0 && db < 0 && dc < 0)) return;
+        cutEdge(a, b, da, db);
+        cutEdge(b, c, db, dc);
+        cutEdge(c, a, dc, da);
       };
       if (idx) {
         for (let i = 0; i < idx.count; i += 3) tri(idx.getX(i), idx.getX(i + 1), idx.getX(i + 2));
@@ -422,7 +461,7 @@ export function createScene(canvas) {
     const v = new THREE.Vector3().crossVectors(n, u).normalize();
     const uv = convexHull2(
       hits.map((p) => {
-        const o = p.clone().sub(origin);
+        const o = p.sub(origin);
         return { x: o.dot(u), y: o.dot(v) };
       }),
     );
@@ -434,11 +473,46 @@ export function createScene(canvas) {
     const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material);
     mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, v, n));
     mesh.position.copy(origin);
+    const geo = mesh.geometry;
+    const posAttr = geo.attributes.position;
+    const uvAttr = geo.attributes.uv;
+    if (posAttr && uvAttr) {
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (let i = 0; i < posAttr.count; i += 1) {
+        const x = posAttr.getX(i);
+        const y = posAttr.getY(i);
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+      const cx = (minX + maxX) * 0.5;
+      const cy = (minY + maxY) * 0.5;
+      const r = Math.max(maxX - minX, maxY - minY, 1e-4) * 0.5;
+      for (let i = 0; i < uvAttr.count; i += 1) {
+        uvAttr.setXY(i, 0.5 + (posAttr.getX(i) - cx) / (2 * r), 0.5 + (posAttr.getY(i) - cy) / (2 * r));
+      }
+      uvAttr.needsUpdate = true;
+    }
     return mesh;
   }
 
   function fruitSeatZ() {
     return state.inspect ? 0 : (CONFIG.scene.fruitZ ?? 0);
+  }
+
+  function viewItemScale() {
+    const spec = CONFIG.scene;
+    const aspect = Math.max(0.35, camera.aspect || 1);
+    const vFov = (spec.fov * Math.PI) / 180;
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+    const refAspect = spec.itemScaleRefAspect ?? 0.78;
+    const refHFov = 2 * Math.atan(Math.tan(vFov / 2) * refAspect);
+    if (hFov >= refHFov) return 1;
+    return Math.max(spec.portraitItemScaleMin ?? 0.74, hFov / refHFov);
   }
 
   function centerOnPivot(mesh) {
@@ -517,10 +591,16 @@ export function createScene(canvas) {
     const clone = source.clone(true);
     clone.traverse((node) => {
       if (!node.isMesh) return;
+      if (node.userData.cutProxy) {
+        node.visible = false;
+        return;
+      }
       const wrap = (mat) => {
         const copy = mat.clone();
         copy.clippingPlanes = [plane];
-        copy.clipShadows = true;
+        copy.clipShadows = false;
+        copy.side = THREE.FrontSide;
+        copy.userData = { ...(copy.userData || {}), spawnClone: true, persist: false };
         return copy;
       };
       node.material = Array.isArray(node.material) ? node.material.map(wrap) : wrap(node.material);
@@ -561,14 +641,26 @@ export function createScene(canvas) {
     const right = cloneWithClip(state.whole, state.clipPos);
     const capMat = state.materials?.face;
     if (capMat) {
-      const capL = meshCutCap(state.whole, normal, cut.d, capMat) || createPlaneCap(state.type, state.length, normal, cut.d, capMat);
-      const capR = capL.clone(true);
-      capL.position.addScaledVector(normal, -0.003);
-      capR.position.addScaledVector(normal, 0.003);
-      left.add(capL);
-      right.add(capR);
+      let capL = null;
+      try {
+        capL = meshCutCap(state.whole, normal, cut.d, capMat);
+      } catch {
+        capL = null;
+      }
+      if (!capL && !getItem(state.type)?.model) {
+        capL = createPlaneCap(state.type, state.length, normal, cut.d, capMat);
+      }
+      if (capL) {
+        const capR = capL.clone(true);
+        if (capR.geometry) capR.geometry = capL.geometry.clone();
+        capL.position.addScaledVector(normal, -0.003);
+        capR.position.addScaledVector(normal, 0.003);
+        left.add(capL);
+        right.add(capR);
+      }
     }
     objectRoot.remove(state.whole);
+    disposeObject(state.whole);
     state.whole = null;
     state.left = left;
     state.right = right;
@@ -946,8 +1038,7 @@ export function createScene(canvas) {
     const v = new THREE.Vector3();
     let min = Infinity;
     let max = -Infinity;
-    host.traverse((node) => {
-      if (!node.isMesh || !node.geometry?.attributes?.position) return;
+    cutWalkMeshes(host, (node) => {
       const pos = node.geometry.attributes.position;
       mat.multiplyMatrices(inv, node.matrixWorld);
       for (let i = 0; i < pos.count; i += 1) {
@@ -1357,7 +1448,17 @@ export function createScene(canvas) {
     renderer.setSize(width, height, false);
     camera.aspect = width / Math.max(1, height);
     camera.updateProjectionMatrix();
-    frameInspect();
+    if (state.inspect) frameInspect();
+    else centerOnItem();
+    if (state.whole) {
+      const next = viewItemScale();
+      const prev = state.viewScale || 1;
+      if (Math.abs(next - prev) > 0.01) {
+        state.whole.scale.multiplyScalar(next / prev);
+        state.viewScale = next;
+        centerOnPivot(state.whole);
+      }
+    }
   }
 
   function update(dt, extra = {}) {
@@ -1462,6 +1563,7 @@ export function createScene(canvas) {
       camera.position.copy(base);
     }
     camera.lookAt(lookAt);
+    if (gpuLost || renderer.getContext()?.isContextLost?.()) return;
     renderer.render(scene, camera);
   }
 
