@@ -29,7 +29,7 @@
     <meta name="twitter:url" content="https://5050cut.com/" />
     <meta name="twitter:image" content="https://5050cut.com/assets/env/fruit_stall.jpg" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/style.css?v=10" />
+    <link rel="stylesheet" href="/style.css?v=11" />
     <link rel="preload" href="/vendor/draco/draco_decoder.wasm" as="fetch" crossorigin />
     <script
       async
@@ -140,33 +140,11 @@
           <textarea class="board-transfer-text" data-import-text rows="4" spellcheck="false" autocomplete="off"></textarea>
           <p class="board-id-status" data-import-error hidden></p>
           <button type="button" data-import-go data-i18n="saveImportGo">校验并导入</button>
-          <div class="board-restore-confirm" data-import-confirm hidden>
+          <div class="board-import-confirm" data-import-confirm hidden>
             <p class="board-key-warn" data-i18n="saveImportConfirm">导入会覆盖当前存档。</p>
             <button type="button" data-import-yes data-i18n="saveImportYes">确认覆盖</button>
             <button type="button" class="ghost" data-import-no data-i18n="cancel">取消</button>
           </div>
-        </div>
-        <div class="board-restore">
-          <p class="board-name-label" data-i18n="restoreHead">输入 id 恢复排行榜身份</p>
-          <p class="board-key-warn" data-i18n="restoreWarn">id 等于账户钥匙，不要发给别人。只会换排行榜身份，金币、图鉴和成就不动。</p>
-          <input
-            id="board-restore-input"
-            data-restore-id
-            type="text"
-            maxlength="64"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            inputmode="text"
-          />
-          <button type="button" class="ghost" data-restore-go data-i18n="restoreGo">查找这个 id</button>
-          <div class="board-restore-confirm" data-restore-confirm hidden>
-            <p class="board-key-warn" data-restore-found></p>
-            <button type="button" data-restore-yes data-i18n="restoreYes">确认恢复</button>
-            <button type="button" class="ghost" data-restore-no data-i18n="cancel">取消</button>
-          </div>
-          <p class="board-id-status" data-restore-status hidden></p>
         </div>
         <label class="board-name-label" for="board-name-input" data-i18n="nickLabel">昵称</label>
         <input
@@ -183,6 +161,6 @@
         <button type="button" class="ghost" data-name-cancel data-i18n="cancel">取消</button>
       </form>
     </div>
-    <script type="module" src="/src/main.js?v=143"></script>
+    <script type="module" src="/src/main.js?v=144"></script>
   </body>
 </html>

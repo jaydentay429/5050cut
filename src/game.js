@@ -1,10 +1,10 @@
 import { CONFIG } from "./config.js?v=105";
 import { haptic, isMuted, play, tickMusic, toggleMuted, unlockAudio, setFocusMuted } from "./audio.js?v=67";
 import { evaluateCut } from "./cut.js";
-import { ensureFruitModel, ensureWorldBackdrop, isModelReady, prefetchTheme, retainMenuModels, retainPlayModels, warmupModel } from "./fruitAssets.js?v=118";
-import { displayLength, pickObjectType, themeAt, themeIdForType, catalogTypes } from "./object.js?v=78";
+import { ensureFruitModel, ensureWorldBackdrop, isModelReady, prefetchTheme, retainMenuModels, retainPlayModels, warmupModel } from "./fruitAssets.js?v=119";
+import { displayLength, pickObjectType, themeAt, themeIdForType, catalogTypes } from "./object.js?v=79";
 import { dailyThemeId, getItem } from "./worlds.js?v=102";
-import { volumeSharePlane } from "./volume.js?v=76";
+import { volumeSharePlane } from "./volume.js?v=77";
 import {
   applyCut,
   comboTitle,
@@ -12,15 +12,15 @@ import {
   gradeFromScore,
   rankFromRun,
   scoreFromDeviation,
-} from "./score.js?v=2";
+} from "./score.js?v=3";
 import { collectionScore, hasGrandTrophy, stallStars, stallTrophy, unlockedStallIds } from "./progress.js";
-import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=143";
+import { hitButton, hitOrbitPad, layoutButtons, layoutOrbitPad, mergePromptButtons, renderUI } from "./ui.js?v=144";
 import { ACHIEVEMENTS, achievementSnapshot, pendingAchievements } from "./achievements.js?v=139";
 import { loadAchievements, loadCodex, loadEconomy, loadHighScore, saveAchievements, saveEconomy, saveHighScore, todayKey, unlockCodexEntry } from "./storage.js";
-import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=15";
+import { onGameEnd, onGameStart, onHappyTime, onRewardedAd, onVisibility, openShare, submitRunScore } from "./platform.js?v=16";
 import { adHooks, adsStatus, isAdBusy, isRewardPending, noteMeaningfulRun, notePlayTime } from "./ads.js?v=6";
-import { fetchBoard, isBoardOverlayOpen, loadBoardProfile, promptBoardName, promptBoardTitle, saveBoardProfile } from "./board.js?v=10";
-import { achieveTitle, getLang, setLang, t, themeName, typeLabel } from "./i18n.js?v=141";
+import { fetchBoard, isBoardOverlayOpen, loadBoardProfile, promptBoardName, promptBoardTitle, saveBoardProfile } from "./board.js?v=11";
+import { achieveTitle, getLang, setLang, t, themeName, typeLabel } from "./i18n.js?v=142";
 
 const MENU = "menu";
 const CODEX = "codex";
@@ -107,9 +107,8 @@ export class Game {
     this.boardLoading = false;
     this.boardError = "";
     this.boardProfile = loadBoardProfile();
-    // 从排行榜找回的头衔带 serverTitle。本地成就没解锁时也不清掉，避免下次提交把旧头衔抹掉。
-    if (this.boardProfile.titleId && !this.achieve.unlocked[this.boardProfile.titleId] && !this.boardProfile.serverTitle) {
-      this.boardProfile = { ...this.boardProfile, titleId: "", serverTitle: false };
+    if (this.boardProfile.titleId && !this.achieve.unlocked[this.boardProfile.titleId]) {
+      this.boardProfile = { ...this.boardProfile, titleId: "" };
       saveBoardProfile(this.boardProfile);
     }
     this.revokeUnearnedScoreUnlocks();
@@ -155,7 +154,7 @@ export class Game {
     this.persistEconomy();
     this.persistAchieve();
     if (this.boardProfile.titleId && !this.achieve.unlocked[this.boardProfile.titleId]) {
-      this.boardProfile = { ...this.boardProfile, titleId: "", serverTitle: false };
+      this.boardProfile = { ...this.boardProfile, titleId: "" };
       saveBoardProfile(this.boardProfile);
     }
   }
@@ -723,7 +722,7 @@ export class Game {
       if (next) this.tokenToast = { amount: 0, reason: t("titleOn", { name: achieveTitle(next) }), at: this.time };
       return;
     }
-    this.boardProfile = { ...this.boardProfile, titleId: next, serverTitle: false };
+    this.boardProfile = { ...this.boardProfile, titleId: next };
     saveBoardProfile(this.boardProfile);
     play("button");
     this.tokenToast = {

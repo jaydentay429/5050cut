@@ -4,14 +4,10 @@ import {
   BACKUP_KEY,
   BOARD_KEY,
   applyImportedSave,
-  applyRestoredBoard,
   collectSave,
   decodeSaveCode,
   encodeSaveCode,
   fnv1a64Hex,
-  isLeaderboardId,
-  normalizeLeaderboardId,
-  restoredBoardProfile,
   withSaveBackup,
 } from "./saveTransfer.js";
 
@@ -207,38 +203,4 @@ test("backup write failure does not change the save", () => {
   assert.equal(result.rolledBack, true);
   assert.equal(mutated, false);
   assert.equal(storage.getItem("perfect-slice-high-score"), "4");
-});
-
-test("leaderboard id normalization and restore profile", () => {
-  assert.equal(normalizeLeaderboardId(" AB CD\n "), "abcd");
-  assert.equal(isLeaderboardId(ID), true);
-  assert.equal(isLeaderboardId("AB".repeat(12).toLowerCase()), true);
-  assert.equal(isLeaderboardId("abc"), false);
-  assert.equal(isLeaderboardId(`${ID}ff`), false);
-
-  const current = { id: "cd".repeat(12), name: "新号", titleId: "", country: "US" };
-  const restored = restoredBoardProfile(current, ID, { name: "旧档主", title: "第一刀", country: "TW" }, "first_cut");
-  assert.equal(restored.ok, true);
-  assert.deepEqual(restored.profile, {
-    id: ID,
-    name: "旧档主",
-    titleId: "first_cut",
-    country: "TW",
-    serverTitle: true,
-  });
-  assert.equal(restoredBoardProfile(current, ID, { name: "", title: "" }, "").error, "noName");
-  assert.equal(restoredBoardProfile(current, ID, { name: "旧档主", title: "没有这头衔" }, "").error, "badTitle");
-  assert.equal(restoredBoardProfile(current, "nope", { name: "旧档主", title: "" }, "").error, "badId");
-
-  const storage = memoryStorage({
-    ...sampleData(),
-    "perfect-slice-economy": sampleData()["perfect-slice-economy"],
-  });
-  const economy = storage.getItem("perfect-slice-economy");
-  const applied = applyRestoredBoard(storage, restored.profile, NOW);
-  assert.equal(applied.ok, true);
-  assert.equal(JSON.parse(storage.getItem(BOARD_KEY)).id, ID);
-  assert.equal(JSON.parse(storage.getItem(BOARD_KEY)).name, "旧档主");
-  assert.equal(storage.getItem("perfect-slice-economy"), economy);
-  assert.equal(JSON.parse(storage.getItem(BACKUP_KEY)).data[BOARD_KEY].includes("切客·阿明"), true);
 });

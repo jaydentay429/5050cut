@@ -373,14 +373,12 @@ body.overlay-open #game {
   overflow-wrap: anywhere;
 }
 
-.board-transfer,
-.board-restore {
+.board-transfer {
   min-width: 0;
   margin-top: 8px;
 }
 
-.board-transfer-text,
-#board-restore-input {
+.board-transfer-text {
   display: block;
   width: 100%;
   max-width: 100%;
@@ -409,16 +407,11 @@ body.overlay-open #game {
   word-break: break-all;
 }
 
-#board-restore-input {
-  min-height: 44px;
-}
-
-.board-transfer-text:focus,
-#board-restore-input:focus {
+.board-transfer-text:focus {
   border-color: #e07a3d;
 }
 
-.board-restore-confirm {
+.board-import-confirm {
   min-width: 0;
 }
 

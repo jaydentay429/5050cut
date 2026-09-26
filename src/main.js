@@ -2,13 +2,13 @@
  * 入口：创建 Canvas / WebGL、处理窗口尺寸、驱动游戏循环。
  * 浏览器专属 API（window / document / canvas）集中在这一文件、input.js 和 audio.js。
  */
-import { Game } from "./game.js?v=143";
+import { Game } from "./game.js?v=144";
 import { attachInput } from "./input.js?v=80";
-import { catalogTypes } from "./object.js?v=78";
-import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=118";
-import { createScene } from "./scene.js?v=99";
+import { catalogTypes } from "./object.js?v=79";
+import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=119";
+import { createScene } from "./scene.js?v=100";
 import { CONFIG } from "./config.js?v=110";
-import { t } from "./i18n.js?v=141";
+import { t } from "./i18n.js?v=142";
 
 function syncPrivacyLink(state) {
   const link = document.getElementById("privacy-link");

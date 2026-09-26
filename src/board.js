@@ -1,17 +1,8 @@
 /**
  * 排行榜客户端。国家由服务端 IP 判定。
  */
-import { applyDomLang, getLang, t, titleIdFromStored } from "./i18n.js?v=141";
-import {
-  applyImportedSave,
-  applyRestoredBoard,
-  collectSave,
-  decodeSaveCode,
-  encodeSaveCode,
-  isLeaderboardId,
-  normalizeLeaderboardId,
-  restoredBoardProfile,
-} from "./saveTransfer.js?v=1";
+import { applyDomLang, getLang, t } from "./i18n.js?v=142";
+import { applyImportedSave, collectSave, decodeSaveCode, encodeSaveCode } from "./saveTransfer.js?v=2";
 
 const NAMES = ["切客", "正中侠", "摊主", "半半", "果刀", "一刀准", "桌边人", "夜摊"];
 
@@ -30,14 +21,13 @@ export function loadBoardProfile() {
         name: String(raw.name || "").slice(0, 12) || defaultName(raw.id),
         titleId: String(raw.titleId || ""),
         country: String(raw.country || ""),
-        serverTitle: raw.serverTitle === true,
       };
     }
   } catch {
     /* ignore */
   }
   const id = randomId();
-  const profile = { id, name: defaultName(id), titleId: "", country: "", serverTitle: false };
+  const profile = { id, name: defaultName(id), titleId: "", country: "" };
   saveBoardProfile(profile);
   return profile;
 }
@@ -165,21 +155,12 @@ export function promptBoardName(current) {
   const importConfirm = root?.querySelector("[data-import-confirm]");
   const importYes = root?.querySelector("[data-import-yes]");
   const importNo = root?.querySelector("[data-import-no]");
-  const restoreInput = root?.querySelector("[data-restore-id]");
-  const restoreGo = root?.querySelector("[data-restore-go]");
-  const restoreConfirm = root?.querySelector("[data-restore-confirm]");
-  const restoreFound = root?.querySelector("[data-restore-found]");
-  const restoreYes = root?.querySelector("[data-restore-yes]");
-  const restoreNo = root?.querySelector("[data-restore-no]");
-  const restoreStatus = root?.querySelector("[data-restore-status]");
   if (!root || !input) return Promise.resolve(null);
   if (!root.hidden) return Promise.resolve(null);
 
   const boardId = loadBoardProfile().id;
   let exportCode = "";
   let pendingImport = null;
-  let pendingProfile = null;
-  let restoreBusy = false;
 
   return new Promise((resolve) => {
     let done = false;
@@ -201,11 +182,6 @@ export function promptBoardName(current) {
       importYes?.removeEventListener("click", onImportYes);
       importNo?.removeEventListener("click", onImportNo);
       importText?.removeEventListener("input", onImportEdit);
-      restoreGo?.removeEventListener("click", onRestoreGo);
-      restoreYes?.removeEventListener("click", onRestoreYes);
-      restoreNo?.removeEventListener("click", onRestoreNo);
-      restoreInput?.removeEventListener("input", onRestoreEdit);
-      restoreInput?.removeEventListener("keydown", onRestoreKey);
       cancel?.removeEventListener("click", onCancel);
       input.removeEventListener("keydown", onKey);
       resolve(value);
@@ -293,90 +269,6 @@ export function promptBoardName(current) {
       }
       window.location.reload();
     };
-    const onRestoreEdit = () => {
-      if (!restoreInput) return;
-      const next = normalizeLeaderboardId(restoreInput.value);
-      if (restoreInput.value !== next) {
-        const caret = restoreInput.selectionStart || 0;
-        restoreInput.value = next;
-        const pos = Math.min(caret, next.length);
-        restoreInput.setSelectionRange(pos, pos);
-      }
-      pendingProfile = null;
-      if (restoreConfirm) restoreConfirm.hidden = true;
-    };
-    const onRestoreGo = async (event) => {
-      event?.preventDefault();
-      event?.stopPropagation();
-      if (restoreBusy) return;
-      onRestoreEdit();
-      const id = normalizeLeaderboardId(restoreInput?.value || "");
-      if (!isLeaderboardId(id)) {
-        pendingProfile = null;
-        if (restoreConfirm) restoreConfirm.hidden = true;
-        showLine(restoreStatus, t("restoreBad"), true);
-        return;
-      }
-      restoreBusy = true;
-      showLine(restoreStatus, t("boardLoad"), false);
-      try {
-        const data = await fetchBoard("global", id);
-        if (!data?.me) {
-          pendingProfile = null;
-          if (restoreConfirm) restoreConfirm.hidden = true;
-          showLine(restoreStatus, t("restoreMiss"), true);
-          return;
-        }
-        const titleId = data.me.title ? titleIdFromStored(data.me.title) : "";
-        const built = restoredBoardProfile(loadBoardProfile(), id, data.me, titleId);
-        if (!built.ok) {
-          pendingProfile = null;
-          if (restoreConfirm) restoreConfirm.hidden = true;
-          const key = {
-            noName: "restoreNoName",
-            noTitle: "restoreNoTitle",
-            badTitle: "restoreBadTitle",
-            badId: "restoreBad",
-          }[built.error];
-          showLine(restoreStatus, t(key || "restoreMiss"), true);
-          return;
-        }
-        pendingProfile = built.profile;
-        if (restoreFound) restoreFound.textContent = t("restoreFound", { name: built.profile.name });
-        if (restoreConfirm) restoreConfirm.hidden = false;
-        showLine(restoreStatus, "", false);
-        restoreConfirm?.scrollIntoView({ block: "nearest" });
-      } catch {
-        pendingProfile = null;
-        if (restoreConfirm) restoreConfirm.hidden = true;
-        showLine(restoreStatus, t("restoreOffline"), true);
-      } finally {
-        restoreBusy = false;
-      }
-    };
-    const onRestoreYes = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!pendingProfile) return;
-      const result = applyRestoredBoard(localStorage, pendingProfile);
-      if (!result.ok) {
-        showLine(restoreStatus, t(result.rolledBack === false ? "restoreWriteKeep" : "restoreWrite"), true);
-        return;
-      }
-      window.location.reload();
-    };
-    const onRestoreNo = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      pendingProfile = null;
-      if (restoreConfirm) restoreConfirm.hidden = true;
-    };
-    const onRestoreKey = (event) => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      event.stopPropagation();
-      onRestoreGo();
-    };
     const onGuard = (event) => event.stopPropagation();
     const onBackdrop = (event) => {
       if (performance.now() - openedAt < 500) return;
@@ -428,9 +320,6 @@ export function promptBoardName(current) {
     if (importText) importText.value = "";
     if (importConfirm) importConfirm.hidden = true;
     showLine(importError, "", false);
-    if (restoreInput) restoreInput.value = "";
-    if (restoreConfirm) restoreConfirm.hidden = true;
-    showLine(restoreStatus, "", false);
     input.value = current || "";
     root.hidden = false;
     root.addEventListener("pointerdown", onGuard, true);
@@ -445,11 +334,6 @@ export function promptBoardName(current) {
     importYes?.addEventListener("click", onImportYes);
     importNo?.addEventListener("click", onImportNo);
     importText?.addEventListener("input", onImportEdit);
-    restoreGo?.addEventListener("click", onRestoreGo);
-    restoreYes?.addEventListener("click", onRestoreYes);
-    restoreNo?.addEventListener("click", onRestoreNo);
-    restoreInput?.addEventListener("input", onRestoreEdit);
-    restoreInput?.addEventListener("keydown", onRestoreKey);
     cancel?.addEventListener("click", onCancel);
     input.addEventListener("keydown", onKey);
     window.setTimeout(() => {

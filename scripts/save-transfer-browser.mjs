@@ -1,5 +1,5 @@
 /**
- * 无头浏览器检查改名弹窗里的导出 / 导入 / 恢复 id。
+ * 无头浏览器检查改名弹窗里的导出 / 导入。
  * 拦截 /api/board，不访问 5050cut.com。
  *
  *   NODE_PATH=$(npm root -g) 不行时：
@@ -15,8 +15,6 @@ import { decodeSaveCode } from "../src/saveTransfer.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const shotDir = "/opt/cursor/artifacts/screenshots";
 const ID = "ab".repeat(12);
-const MISS = "cd".repeat(12);
-const FOUND = "ef".repeat(12);
 
 const seed = {
   "perfect-slice-high-score": "42",
@@ -37,7 +35,6 @@ const seed = {
     name: "切客·阿明",
     titleId: "combo_5",
     country: "JP",
-    serverTitle: false,
   }),
   "perfect-slice-lang": "zh-Hans",
 };
@@ -62,7 +59,7 @@ function harnessHtml() {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>save transfer harness</title>
-    <link rel="stylesheet" href="/style.css?v=10" />
+    <link rel="stylesheet" href="/style.css?v=11" />
   </head>
   <body>
     ${block}
@@ -73,7 +70,7 @@ function harnessHtml() {
       });
     </script>
     <script type="module">
-      import { promptBoardName } from "/src/board.js?v=10";
+      import { promptBoardName } from "/src/board.js?v=11";
       window.__openName = () => promptBoardName("本地新名字");
       document.documentElement.dataset.ready = "1";
     </script>
@@ -239,12 +236,10 @@ async function runWidth(browser, origin, width) {
       await route.abort();
       return;
     }
-    const id = new URL(req.url()).searchParams.get("id");
-    const me = id === FOUND ? { rank: 2, name: "旧档主", title: "第一刀", score: 88, country: "TW" } : null;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ country: "TW", scope: "global", rows: [], me }),
+      body: JSON.stringify({ country: "TW", scope: "global", rows: [], me: null }),
     });
   });
   await page.goto(`${origin}/harness.html`, { waitUntil: "domcontentloaded", timeout: 8000 });
@@ -278,7 +273,12 @@ async function runWidth(browser, origin, width) {
     const card = document.querySelector("#board-name .ad-consent-card");
     card.scrollTop = card.scrollHeight;
   });
-  await page.screenshot({ path: path.join(shotDir, `save-dialog-${width}-restore.png`) });
+  await page.screenshot({ path: path.join(shotDir, `save-dialog-${width}-bottom.png`) });
+  const leakedRestore = await page.locator("body").innerText();
+  if (leakedRestore.includes("恢复排行榜") || leakedRestore.includes("Restore leaderboard")) {
+    throw new Error("id restore copy is still in the dialog");
+  }
+  if (!leakedRestore.includes("不要发给别人")) throw new Error("missing keep-the-code warning");
 
   const beforeBad = stable(await dumpStorage(page));
   const beforeGets = boardGets;
@@ -325,52 +325,7 @@ async function runWidth(browser, origin, width) {
   const backup = JSON.parse(afterImport["perfect-slice-backup"]);
   if (backup.data["perfect-slice-high-score"] !== "1") throw new Error("backup missing previous score");
   if (afterImport["perfect-slice-backup-2"]) throw new Error("extra backup key");
-
-  await openDialog(page);
-  const backupBeforeMiss = afterImport["perfect-slice-backup"];
-  const boardBeforeMiss = afterImport["perfect-slice-board"];
-  await page.fill("[data-restore-id]", "abc");
-  await page.click("[data-restore-go]");
-  await page.waitForFunction(() => (document.querySelector("[data-restore-status]")?.textContent || "").includes("24"));
-  if ((await dumpStorage(page))["perfect-slice-board"] !== boardBeforeMiss) throw new Error("bad id changed board");
-  const getsAfterBadId = boardGets;
-
-  await page.fill("[data-restore-id]", MISS);
-  await page.click("[data-restore-go]");
-  await page.waitForFunction(() => (document.querySelector("[data-restore-status]")?.textContent || "").includes("没有这个 id"));
-  const afterMiss = await dumpStorage(page);
-  if (afterMiss["perfect-slice-board"] !== boardBeforeMiss) throw new Error("missing id changed board");
-  if (afterMiss["perfect-slice-backup"] !== backupBeforeMiss) throw new Error("missing id wrote a backup");
-  if (afterMiss["perfect-slice-economy"] !== afterImport["perfect-slice-economy"]) throw new Error("missing id changed economy");
-  if (boardGets !== getsAfterBadId + 1) throw new Error(`expected one lookup, got ${boardGets - getsAfterBadId}`);
-
-  await page.fill("[data-restore-id]", "EF ".repeat(12));
-  await page.click("[data-restore-go]");
-  await page.waitForSelector("[data-restore-confirm]:not([hidden])");
-  const foundText = await page.locator("[data-restore-found]").innerText();
-  if (!foundText.includes("旧档主")) throw new Error(`found text ${foundText}`);
-  await page.evaluate(() => {
-    document.querySelector("[data-restore-confirm]").scrollIntoView({ block: "center" });
-  });
-  await page.screenshot({ path: path.join(shotDir, `save-dialog-${width}-found.png`) });
-  const foundLayout = await layoutProblems(page);
-  if (foundLayout.length) throw new Error(foundLayout.join("\n"));
-  await assertClickable(page);
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: "domcontentloaded" }),
-    page.click("[data-restore-yes]"),
-  ]);
-  await page.waitForFunction(() => document.documentElement.dataset.ready === "1");
-  const afterFound = await dumpStorage(page);
-  const board = JSON.parse(afterFound["perfect-slice-board"]);
-  if (board.id !== FOUND || board.name !== "旧档主" || board.titleId !== "first_cut" || board.serverTitle !== true) {
-    throw new Error(`restored board ${JSON.stringify(board)}`);
-  }
-  if (JSON.parse(afterFound["perfect-slice-economy"]).tokens !== 7) throw new Error("restore changed tokens");
-  if (afterFound["perfect-slice-codex"] !== seed["perfect-slice-codex"]) throw new Error("restore changed codex");
-  if (!JSON.parse(afterFound["perfect-slice-backup"]).data["perfect-slice-board"].includes(ID)) {
-    throw new Error("restore backup missing previous id");
-  }
+  if (boardGets !== 0) throw new Error(`export/import called the leaderboard ${boardGets} times`);
   if (bad.length) throw new Error(`unexpected requests ${bad.join(", ")}`);
   await context.close();
   console.log(`ok ${width}px boardGets=${boardGets}`);

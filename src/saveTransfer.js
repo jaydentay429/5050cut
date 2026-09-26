@@ -134,7 +134,7 @@ export function decodeSaveCode(raw) {
   return { ok: true, exportedAt: payload.exportedAt, data: payload.data };
 }
 
-function restoreCollected(storage, prev) {
+function rollbackCollected(storage, prev) {
   for (const key of SAVE_KEYS) {
     if (Object.prototype.hasOwnProperty.call(prev, key)) storage.setItem(key, prev[key]);
     else storage.removeItem(key);
@@ -153,7 +153,7 @@ export function withSaveBackup(storage, mutate, now = new Date()) {
     return { ok: true };
   } catch {
     try {
-      restoreCollected(storage, prev);
+      rollbackCollected(storage, prev);
       return { ok: false, error: "write", rolledBack: true };
     } catch {
       return { ok: false, error: "write", rolledBack: false };
@@ -170,38 +170,4 @@ export function applyImportedSave(storage, data, now = new Date()) {
       else target.removeItem(key);
     }
   }, now);
-}
-
-export function applyRestoredBoard(storage, profile, now = new Date()) {
-  const raw = JSON.stringify(profile);
-  return withSaveBackup(storage, (target) => {
-    target.setItem(BOARD_KEY, raw);
-  }, now);
-}
-
-export function normalizeLeaderboardId(raw) {
-  return String(raw ?? "").replace(/\s+/g, "").toLowerCase();
-}
-
-export function isLeaderboardId(id) {
-  return /^[0-9a-f]{24}$/.test(id);
-}
-
-export function restoredBoardProfile(current, id, me, titleId) {
-  if (!isLeaderboardId(id)) return { ok: false, error: "badId" };
-  const name = String(me?.name ?? "").trim();
-  if (!name) return { ok: false, error: "noName" };
-  if (me?.title == null) return { ok: false, error: "noTitle" };
-  const title = String(me.title);
-  if (title && !titleId) return { ok: false, error: "badTitle" };
-  return {
-    ok: true,
-    profile: {
-      id,
-      name: name.slice(0, 12),
-      titleId: title ? String(titleId) : "",
-      country: String(me.country || current?.country || ""),
-      serverTitle: Boolean(title && titleId),
-    },
-  };
 }
