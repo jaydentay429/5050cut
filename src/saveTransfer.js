@@ -3,7 +3,9 @@
  * 格式：5050CUT1: + base64url(UTF-8 JSON) + "." + FNV-1a 64 位十六进制。
  * JSON：{ v:1, exportedAt, data:{ 白名单键: 原始字符串 } }
  * 备份键不进存档码，避免 localStorage 里叠多份备份。
+ * 昵称必须已经是改名弹窗 cleanBoardName 的结果；头衔必须是空或成就 id。否则整份拒绝。
  */
+import { ACHIEVEMENTS } from "./achievements.js?v=139";
 
 export const CODE_PREFIX = "5050CUT1:";
 export const BACKUP_KEY = "perfect-slice-backup";
@@ -28,6 +30,15 @@ const JSON_KEYS = new Set([
 
 const SAVE_KEY_SET = new Set(SAVE_KEYS);
 const BOARD_ID_RE = /^[0-9a-fA-F]{24}$/;
+const NAME_RE = /^[\p{L}\p{N} _.\-·]{2,12}$/u;
+const TITLE_IDS = new Set(ACHIEVEMENTS.map((row) => row.id));
+
+export function cleanBoardName(raw) {
+  const name = String(raw || "").trim().replace(/\s+/g, " ");
+  if (!NAME_RE.test(name)) return null;
+  if (/https?:|www\.|@/i.test(name)) return null;
+  return name;
+}
 const FNV_OFFSET = 0xcbf29ce484222325n;
 const FNV_PRIME = 0x100000001b3n;
 const FNV_MASK = 0xffffffffffffffffn;
@@ -39,6 +50,16 @@ export function fnv1a64Hex(bytes) {
     hash = (hash * FNV_PRIME) & FNV_MASK;
   }
   return hash.toString(16).padStart(16, "0");
+}
+
+function boardProfileError(board) {
+  if (!board || typeof board !== "object" || Array.isArray(board)) return "boardId";
+  if (typeof board.id !== "string" || !BOARD_ID_RE.test(board.id)) return "boardId";
+  if (typeof board.name !== "string" || cleanBoardName(board.name) !== board.name) return "name";
+  if (board.titleId != null && board.titleId !== "") {
+    if (typeof board.titleId !== "string" || !TITLE_IDS.has(board.titleId)) return "title";
+  }
+  return "";
 }
 
 function utf8(text) {
@@ -85,8 +106,8 @@ export function validateSaveData(data) {
   }
   if (Object.prototype.hasOwnProperty.call(data, BOARD_KEY)) {
     const board = parsed[BOARD_KEY];
-    if (!board || typeof board !== "object" || Array.isArray(board)) return { ok: false, error: "boardId" };
-    if (typeof board.id !== "string" || !BOARD_ID_RE.test(board.id)) return { ok: false, error: "boardId" };
+    const profileError = boardProfileError(board);
+    if (profileError) return { ok: false, error: profileError };
   }
   return { ok: true };
 }

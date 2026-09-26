@@ -84,7 +84,7 @@ function harnessHtml() {
       });
     </script>
     <script type="module">
-      import { promptBoardName } from "/src/board.js?v=11";
+      import { promptBoardName } from "/src/board.js?v=12";
       const scene = document.getElementById("scene");
       scene.width = window.innerWidth;
       scene.height = window.innerHeight;
@@ -328,6 +328,40 @@ async function assertAboutCovered(page) {
   if (bad.length) throw new Error(`#about shows through the dialog: ${bad.join("; ")}`);
 }
 
+async function confirmLanguage(browser, origin, width, lang, needle) {
+  const context = await browser.newContext({
+    viewport: { width, height: 800 },
+    locale: lang === "en" ? "en-US" : lang === "zh-Hant" ? "zh-TW" : "zh-CN",
+  });
+  await context.addInitScript((initial) => {
+    for (const [key, value] of Object.entries(initial)) localStorage.setItem(key, value);
+  }, { ...seed, "perfect-slice-lang": lang });
+  const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  await page.route("**/api/board**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ country: "TW", scope: "global", rows: [], me: null }),
+  }));
+  await page.goto(`${origin}/harness.html`, { waitUntil: "domcontentloaded", timeout: 8000 });
+  await openDialog(page);
+  await page.click("[data-save-export]");
+  await page.waitForFunction(() => (document.querySelector("[data-export-text]")?.value || "").startsWith("5050CUT1:"));
+  const code = await page.locator("[data-export-text]").inputValue();
+  await page.click("[data-save-import]");
+  await page.fill("[data-import-text]", code);
+  await page.click("[data-import-go]");
+  await page.waitForSelector("[data-import-confirm]:not([hidden])");
+  const confirmText = await page.locator("[data-import-confirm]").innerText();
+  if (!confirmText.includes(needle)) throw new Error(`${lang} confirm copy missing: ${confirmText}`);
+  const layout = await layoutProblems(page);
+  if (layout.length) throw new Error(layout.join("\n"));
+  await page.locator("[data-import-confirm]").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(shotDir, `save-confirm-${lang}-${width}.png`) });
+  await context.close();
+  console.log(`confirm ${lang} ${width}px`);
+}
+
 async function runWidth(browser, origin, width) {
   const context = await browser.newContext({
     viewport: { width, height: 800 },
@@ -446,8 +480,12 @@ async function runWidth(browser, origin, width) {
   await page.fill("[data-import-text]", code);
   await page.click("[data-import-go]");
   await page.waitForSelector("[data-import-confirm]:not([hidden])");
+  const confirmText = await page.locator("[data-import-confirm]").innerText();
+  if (!confirmText.includes("原来那一行排行榜记录会留在榜上")) throw new Error(`confirm copy missing: ${confirmText}`);
   const confirmLayout = await layoutProblems(page);
   if (confirmLayout.length) throw new Error(confirmLayout.join("\n"));
+  await page.locator("[data-import-confirm]").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(shotDir, `save-confirm-zh-Hans-${width}.png`) });
   await Promise.all([
     page.waitForNavigation({ waitUntil: "domcontentloaded" }),
     page.click("[data-import-yes]"),
@@ -504,6 +542,10 @@ let failed = false;
 try {
   await runWidth(browser, origin, 360);
   await runWidth(browser, origin, 390);
+  for (const width of [360, 390]) {
+    await confirmLanguage(browser, origin, width, "zh-Hant", "原來那一行排行榜記錄會留在榜上");
+    await confirmLanguage(browser, origin, width, "en", "can no longer be changed");
+  }
 } catch (err) {
   failed = true;
   console.error(err);

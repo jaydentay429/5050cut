@@ -191,6 +191,45 @@ test("a failed write rolls back to the backup snapshot", () => {
   assert.equal(backup.data["perfect-slice-high-score"], original);
 });
 
+function codeFor(data) {
+  const json = JSON.stringify({ v: 1, exportedAt: NOW.toISOString(), data });
+  const bytes = new TextEncoder().encode(json);
+  let bin = "";
+  for (const n of bytes) bin += String.fromCharCode(n);
+  const encoded = btoa(bin).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+  const sum = fnv1a64Hex(new TextEncoder().encode(encoded));
+  return `5050CUT1:${encoded}.${sum}`;
+}
+
+test("hand-edited nickname and title are rejected and the save is unchanged", () => {
+  const board = JSON.parse(sampleData()[BOARD_KEY]);
+  const cases = [
+    ["name", { ...board, name: "一二三四五六七八九十一二三" }],
+    ["name", { ...board, name: "<img src=x onerror=alert(1)>" }],
+    ["title", { ...board, titleId: "<img src=x onerror=alert(1)>" }],
+    ["name", { ...board, name: "切\u0001客" }],
+    ["name", { ...board, name: "切\u200b客" }],
+    ["name", { ...board, name: " 切客 " }],
+  ];
+  const storage = memoryStorage(sampleData());
+  const before = structuredClone(storage.dump());
+  for (const [error, nextBoard] of cases) {
+    const data = { ...sampleData(), [BOARD_KEY]: JSON.stringify(nextBoard) };
+    const decoded = decodeSaveCode(codeFor(data));
+    assert.equal(decoded.ok, false);
+    assert.equal(decoded.error, error);
+    const applied = applyImportedSave(storage, data, NOW);
+    assert.equal(applied.ok, false);
+    assert.equal(applied.error, error);
+    assert.deepEqual(storage.dump(), before);
+    assert.equal(storage.getItem(BACKUP_KEY), null);
+  }
+  const bare = JSON.parse(sampleData()[BOARD_KEY]);
+  bare.titleId = "";
+  const cleared = { ...sampleData(), [BOARD_KEY]: JSON.stringify(bare) };
+  assert.equal(decodeSaveCode(encodeSaveCode(cleared, NOW)).ok, true);
+});
+
 test("backup write failure does not change the save", () => {
   const storage = memoryStorage({ "perfect-slice-high-score": "4" });
   storage.setItem = (key) => {

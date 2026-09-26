@@ -1,8 +1,8 @@
 /**
  * 排行榜客户端。国家由服务端 IP 判定。
  */
-import { applyDomLang, getLang, t } from "./i18n.js?v=142";
-import { applyImportedSave, collectSave, decodeSaveCode, encodeSaveCode } from "./saveTransfer.js?v=2";
+import { applyDomLang, getLang, t } from "./i18n.js?v=143";
+import { applyImportedSave, cleanBoardName, collectSave, decodeSaveCode, encodeSaveCode } from "./saveTransfer.js?v=3";
 
 const NAMES = ["切客", "正中侠", "摊主", "半半", "果刀", "一刀准", "桌边人", "夜摊"];
 
@@ -46,14 +46,7 @@ export function defaultName(id) {
   return `${base}${String(id).slice(-3).toUpperCase()}`;
 }
 
-const NAME_RE = /^[\p{L}\p{N} _.\-·]{2,12}$/u;
-
-export function cleanBoardName(raw) {
-  const name = String(raw || "").trim().replace(/\s+/g, " ");
-  if (!NAME_RE.test(name)) return null;
-  if (/https?:|www\.|@/i.test(name)) return null;
-  return name;
-}
+export { cleanBoardName };
 
 export function isNamePromptOpen() {
   const root = document.getElementById("board-name");
@@ -100,6 +93,8 @@ const SAVE_ERR = {
   type: "saveErrType",
   jsonValue: "saveErrType",
   boardId: "saveErrBoard",
+  name: "saveErrName",
+  title: "saveErrTitle",
   write: "saveErrWrite",
 };
 
