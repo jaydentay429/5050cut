@@ -1565,27 +1565,71 @@ function fillPlate(ctx, x, y, w, h, r, fill = "rgba(8, 6, 4, 0.92)") {
   ctx.fill();
 }
 
+function toastMessage(model) {
+  const reason = model.tokenToast.reason ? `${model.tokenToast.reason}` : "";
+  if (model.tokenToast.amount) {
+    return t("tokenGain", {
+      reason,
+      n: model.tokenToast.amount,
+      unit: t("tokenUnit"),
+    });
+  }
+  return reason || t("reward");
+}
+
+/** 商店里「返回」紧挨看广告按钮，提示若贴在返回上方会盖住按钮。改放到两排按钮之间的空隙。 */
+function shopToastBox(ctx, width, height, model, msg) {
+  const ad = model.buttons?.["ad-token"];
+  if (model.state !== "shop" || !ad) return null;
+  const s = uiScale(width, height);
+  const shares = ["share-fb", "share-x", "share-threads"].map((id) => model.buttons[id]).filter(Boolean);
+  const shareBottom = shares.length ? Math.max(...shares.map((button) => button.y + button.h)) : ad.y - 28;
+  const margin = 2;
+  const top = shareBottom + margin;
+  const limit = ad.y - margin;
+  const available = Math.max(0, limit - top);
+  const boxH = Math.min(Math.max(20, 28 * s), Math.max(18, available || 18));
+  let boxY = available >= boxH ? top + (available - boxH) / 2 : limit - boxH;
+  if (boxY < 8) boxY = 8;
+  if (boxY + boxH > ad.y - margin) boxY = ad.y - margin - boxH;
+  const fontSize = Math.max(12, Math.min(15, boxH - 8));
+  const padX = 12;
+  ctx.save();
+  ctx.font = font(fontSize, "800");
+  const textW = ctx.measureText(msg).width;
+  ctx.restore();
+  const maxW = Math.min(ad.w, Math.max(32, width - 16));
+  const boxW = Math.min(maxW, Math.max(textW + padX * 2, Math.min(maxW, 88)));
+  let boxX = ad.x + (ad.w - boxW) / 2;
+  boxX = Math.max(8, Math.min(boxX, width - 8 - boxW));
+  return { boxX, boxY, boxW, boxH, fontSize, padX };
+}
+
 function drawTokenToast(ctx, width, height, model) {
   if (!model.tokenToast) return;
   const s = uiScale(width, height);
   const spec = CONFIG.ui;
-  const reason = model.tokenToast.reason ? `${model.tokenToast.reason}` : "";
-  const msg = model.tokenToast.amount
-    ? t("tokenGain", {
-        reason,
-        n: model.tokenToast.amount,
-        unit: t("tokenUnit"),
-      })
-    : reason || t("reward");
+  const msg = toastMessage(model);
+  const shopBox = shopToastBox(ctx, width, height, model, msg);
   ctx.save();
-  ctx.font = font(Math.max(14, 16 * s), "800");
-  const textW = Math.min(ctx.measureText(msg).width, width * 0.78);
-  const padX = 16;
-  const boxW = Math.min(width - 24, textW + padX * 2);
-  const boxH = Math.max(36, 40 * s);
-  const menu = model.buttons?.menu;
-  const boxX = (width - boxW) / 2;
-  const boxY = menu ? Math.max(12, menu.y - boxH - 12) : height * 0.16;
+  let boxX;
+  let boxY;
+  let boxW;
+  let boxH;
+  let padX;
+  if (shopBox) {
+    ({ boxX, boxY, boxW, boxH, padX } = shopBox);
+    ctx.font = font(shopBox.fontSize, "800");
+  } else {
+    padX = 16;
+    ctx.font = font(Math.max(14, 16 * s), "800");
+    const textW = Math.min(ctx.measureText(msg).width, width * 0.78);
+    boxW = Math.min(width - 24, textW + padX * 2);
+    boxH = Math.max(36, 40 * s);
+    const menu = model.buttons?.menu;
+    boxX = (width - boxW) / 2;
+    boxY = menu ? Math.max(12, menu.y - boxH - 12) : height * 0.16;
+  }
   fillPlate(ctx, boxX, boxY, boxW, boxH, boxH / 2, "rgba(12, 9, 7, 0.94)");
   ctx.strokeStyle = "rgba(243, 230, 208, 0.45)";
   ctx.lineWidth = 1.5;
@@ -1594,7 +1638,7 @@ function drawTokenToast(ctx, width, height, model) {
   ctx.fillStyle = spec.cream;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(msg, width / 2, boxY + boxH / 2, boxW - padX * 2);
+  ctx.fillText(msg, boxX + boxW / 2, boxY + boxH / 2, boxW - padX * 2);
   ctx.restore();
 }
 
@@ -2051,7 +2095,7 @@ function drawShop(ctx, width, height, model) {
     ctx.font = font(Math.max(11, 12 * s), "600");
     ctx.fillText(t("shareOnce", { n: shareN }), share.x + panelW, share.y - Math.max(16, 18 * s));
   }
-  if (ad) {
+  if (ad && !model.tokenToast) {
     ctx.textAlign = "left";
     ctx.fillStyle = spec.cream;
     ctx.font = font(Math.max(12, 13 * s), "700");
