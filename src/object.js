@@ -1,7 +1,7 @@
 import { CONFIG } from "./config.js?v=105";
-import { axisLength } from "./shapeProfile.js?v=78";
+import { axisLength } from "./shapeProfile.js?v=82";
 import { dailyThemeId, ITEMS } from "./worlds.js?v=102";
-import { isModelReady } from "./fruitAssets.js?v=119";
+import { isModelReady } from "./fruitAssets.js?v=123";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));

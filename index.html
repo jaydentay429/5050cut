@@ -29,7 +29,7 @@
     <meta name="twitter:url" content="https://5050cut.com/" />
     <meta name="twitter:image" content="https://5050cut.com/assets/env/fruit_stall.jpg" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/style.css?v=11" />
+    <link rel="stylesheet" href="/style.css?v=13" />
     <link rel="preload" href="/vendor/draco/draco_decoder.wasm" as="fetch" crossorigin />
     <script
       async
@@ -116,12 +116,37 @@
           只记在这台设备的浏览器里。换手机或清缓存就是新账号。
         </p>
         <p class="board-name-label" data-i18n="nickIdLabel">排行榜 id</p>
-        <p class="ad-consent-body board-id-hint" data-i18n="nickIdHint">这是排行榜 id，申请删除排行榜记录时用。</p>
+        <p class="board-key-warn board-id-hint" data-i18n="nickIdHint">这是排行榜 id，等于账户钥匙，不要发给别人。申请删除排行榜记录时也用它。</p>
         <div class="board-id-row">
           <p class="board-id" data-board-id></p>
           <button type="button" class="ghost board-id-copy" data-id-copy data-i18n="nickIdCopy">复制</button>
         </div>
+        <div class="board-id-actions">
+          <button type="button" class="ghost" data-save-export data-i18n="saveExport">导出存档</button>
+          <button type="button" class="ghost" data-save-import data-i18n="saveImport">导入存档</button>
+        </div>
         <p class="board-id-status" data-id-status hidden></p>
+        <div class="board-transfer" data-export-panel hidden>
+          <p class="board-key-warn" data-i18n="saveExportWarn">存档码里含账户 id，等于账户钥匙，不要发给别人。</p>
+          <textarea class="board-transfer-text" data-export-text readonly rows="4" spellcheck="false"></textarea>
+          <div class="board-inline-actions">
+            <button type="button" class="ghost" data-export-copy data-i18n="saveCopy">复制存档码</button>
+            <button type="button" class="ghost" data-export-share data-i18n="saveShare" hidden>分享</button>
+          </div>
+          <p class="board-id-status" data-export-status hidden></p>
+        </div>
+        <div class="board-transfer" data-import-panel hidden>
+          <p class="board-key-warn" data-i18n="saveImportWarn">只粘贴你自己的存档码。</p>
+          <textarea class="board-transfer-text" data-import-text rows="4" spellcheck="false" autocomplete="off"></textarea>
+          <p class="board-id-status" data-import-error hidden></p>
+          <button type="button" data-import-go data-i18n="saveImportGo">校验并导入</button>
+          <div class="board-import-confirm" data-import-confirm hidden>
+            <p class="board-key-warn" data-i18n="saveImportConfirm">导入会覆盖当前存档。导入后这台设备原来的排行榜身份会被换成存档码里的身份，原来那一行排行榜记录会留在榜上，之后无法再修改。</p>
+            <button type="button" data-import-yes data-i18n="saveImportYes">确认覆盖</button>
+            <button type="button" class="ghost" data-import-no data-i18n="cancel">取消</button>
+          </div>
+        </div>
+        <p class="board-key-warn" data-export-rename hidden></p>
         <label class="board-name-label" for="board-name-input" data-i18n="nickLabel">昵称</label>
         <input
           id="board-name-input"
@@ -137,6 +162,6 @@
         <button type="button" class="ghost" data-name-cancel data-i18n="cancel">取消</button>
       </form>
     </div>
-    <script type="module" src="/src/main.js?v=146"></script>
+    <script type="module" src="/src/main.js?v=149"></script>
   </body>
 </html>

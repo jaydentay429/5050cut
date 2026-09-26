@@ -10,8 +10,8 @@ import {
   createWholeObject,
   disposeMaterials,
   objectExtents,
-} from "./catalog.js?v=81";
-import { fruitEnvMap, fruitStallMaps, isFruitType, worldBackdrop } from "./fruitAssets.js?v=119";
+} from "./catalog.js?v=85";
+import { fruitEnvMap, fruitStallMaps, isFruitType, worldBackdrop } from "./fruitAssets.js?v=123";
 import { getItem } from "./worlds.js?v=102";
 import { volumeShareFromObject } from "./meshVolume.js?v=75";
 import { makeAwningTexture, makeThemeBoard, makeThemeGround, makeThemeWall } from "./sliceFace.js";

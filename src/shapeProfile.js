@@ -4,7 +4,7 @@
 
 import { CONFIG } from "./config.js?v=105";
 import { boxTypeSet, getItem } from "./worlds.js?v=102";
-import { fruitModelScale, fruitRestSize } from "./fruitAssets.js?v=119";
+import { fruitModelScale, fruitRestSize } from "./fruitAssets.js?v=123";
 
 export function axisLength(type, requested) {
   const item = getItem(type);
