@@ -1,7 +1,7 @@
 /**
  * 排行榜客户端。国家由服务端 IP 判定。
  */
-import { applyDomLang, getLang, t } from "./i18n.js?v=139";
+import { applyDomLang, getLang, t } from "./i18n.js?v=140";
 
 const NAMES = ["切客", "正中侠", "摊主", "半半", "果刀", "一刀准", "桌边人", "夜摊"];
 
@@ -59,13 +59,47 @@ export function isNamePromptOpen() {
   return Boolean(root && !root.hidden);
 }
 
+function selectElementText(el) {
+  if (!el) return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function showIdStatus(statusEl, key) {
+  if (!statusEl) return;
+  statusEl.hidden = false;
+  statusEl.textContent = t(key);
+}
+
+async function copyLeaderboardId(id, idEl, statusEl) {
+  try {
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+      throw new Error("no-clipboard");
+    }
+    await navigator.clipboard.writeText(id);
+    showIdStatus(statusEl, "nickIdCopied");
+  } catch {
+    selectElementText(idEl);
+    showIdStatus(statusEl, "nickIdCopyManual");
+  }
+}
+
 export function promptBoardName(current) {
   const root = document.getElementById("board-name");
   const input = root?.querySelector("input");
   const hint = root?.querySelector("[data-name-hint]");
   const form = root?.querySelector("[data-name-form]");
+  const idEl = root?.querySelector("[data-board-id]");
+  const copyBtn = root?.querySelector("[data-id-copy]");
+  const statusEl = root?.querySelector("[data-id-status]");
   if (!root || !input) return Promise.resolve(null);
   if (!root.hidden) return Promise.resolve(null);
+
+  const boardId = loadBoardProfile().id;
 
   return new Promise((resolve) => {
     let done = false;
@@ -78,9 +112,15 @@ export function promptBoardName(current) {
       root.removeEventListener("pointerdown", onGuard, true);
       root.removeEventListener("click", onBackdrop);
       form?.removeEventListener("submit", onSubmit);
+      copyBtn?.removeEventListener("click", onCopy);
       cancel?.removeEventListener("click", onCancel);
       input.removeEventListener("keydown", onKey);
       resolve(value);
+    };
+    const onCopy = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      copyLeaderboardId(boardId, idEl, statusEl);
     };
     const onGuard = (event) => event.stopPropagation();
     const onBackdrop = (event) => {
@@ -119,11 +159,17 @@ export function promptBoardName(current) {
       hint.textContent = t("nickBody");
       hint.classList.remove("is-error");
     }
+    if (idEl) idEl.textContent = boardId;
+    if (statusEl) {
+      statusEl.hidden = true;
+      statusEl.textContent = "";
+    }
     input.value = current || "";
     root.hidden = false;
     root.addEventListener("pointerdown", onGuard, true);
     root.addEventListener("click", onBackdrop);
     form?.addEventListener("submit", onSubmit);
+    copyBtn?.addEventListener("click", onCopy);
     cancel?.addEventListener("click", onCancel);
     input.addEventListener("keydown", onKey);
     window.setTimeout(() => {

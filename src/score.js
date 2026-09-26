@@ -1,4 +1,4 @@
-import { t } from "./i18n.js?v=139";
+import { t } from "./i18n.js?v=140";
 import { CONFIG } from "./config.js";
 
 export function createScoreState() {
