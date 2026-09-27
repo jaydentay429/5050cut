@@ -6,7 +6,7 @@ import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { DRACOLoader } from "../vendor/DRACOLoader.js";
 import { RGBELoader } from "../vendor/RGBELoader.js";
 import { CONFIG } from "./config.js?v=105";
-import { t } from "./i18n.js?v=146";
+import { t } from "./i18n.js?v=147";
 import { assetUrl } from "./assetUrl.js?v=93";
 import { getItem, WORLD_BACKDROP, WORLDS } from "./worlds.js?v=102";
 

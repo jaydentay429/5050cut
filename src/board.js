@@ -1,8 +1,8 @@
 /**
  * 排行榜客户端。国家由服务端 IP 判定。
  */
-import { applyDomLang, getLang, t } from "./i18n.js?v=146";
-import { applyImportedSave, cleanBoardName, collectSave, decodeSaveCode, exportSaveFromData } from "./saveTransfer.js?v=5";
+import { applyDomLang, getLang, t } from "./i18n.js?v=147";
+import { applyImportedSave, cleanBoardName, collectSave, decodeSaveCode, exportSaveFromData } from "./saveTransfer.js?v=6";
 
 const NAMES = ["切客", "正中侠", "摊主", "半半", "果刀", "一刀准", "桌边人", "夜摊"];
 
@@ -82,9 +82,22 @@ async function copyLeaderboardId(id, idEl, statusEl) {
   }
 }
 
+function coarsePointer() {
+  try {
+    return window.matchMedia?.("(pointer: coarse)")?.matches === true;
+  } catch {
+    return false;
+  }
+}
+
+export function saveCopyManualKey(coarse = coarsePointer()) {
+  return coarse ? "saveCopyManual" : "saveCopyManualFine";
+}
+
 const SAVE_ERR = {
   empty: "saveErrEmpty",
   prefix: "saveErrPrefix",
+  incomplete: "saveErrIncomplete",
   checksum: "saveErrChecksum",
   version: "saveErrVersion",
   json: "saveErrJson",
@@ -226,7 +239,7 @@ export function promptBoardName(current) {
       event.preventDefault();
       event.stopPropagation();
       if (!exportCode) return;
-      copyPlainText(exportCode, exportText, exportStatus, "saveCopied", "saveCopyManual");
+      copyPlainText(exportCode, exportText, exportStatus, "saveCopied", saveCopyManualKey());
     };
     const onExportShare = (event) => {
       event.preventDefault();
@@ -234,7 +247,7 @@ export function promptBoardName(current) {
       if (!exportCode || typeof navigator.share !== "function") return;
       navigator.share({ text: exportCode }).catch((err) => {
         if (err && err.name === "AbortError") return;
-        copyPlainText(exportCode, exportText, exportStatus, "saveCopied", "saveCopyManual");
+        copyPlainText(exportCode, exportText, exportStatus, "saveCopied", saveCopyManualKey());
       });
     };
     const onImportOpen = (event) => {

@@ -142,7 +142,8 @@ export function decodeSaveCode(raw) {
   if (!text.startsWith(CODE_PREFIX)) return { ok: false, error: "prefix" };
   const body = text.slice(CODE_PREFIX.length);
   const dot = body.lastIndexOf(".");
-  if (dot <= 0 || dot === body.length - 1) return { ok: false, error: "prefix" };
+  if (dot < 0 || dot === body.length - 1) return { ok: false, error: "incomplete" };
+  if (dot === 0) return { ok: false, error: "prefix" };
   const b64 = body.slice(0, dot);
   const sum = body.slice(dot + 1);
   let expected = "";

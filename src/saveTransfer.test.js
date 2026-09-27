@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { saveErrorText } from "./board.js";
-import { setLang, t } from "./i18n.js?v=146";
+import { saveCopyManualKey, saveErrorText } from "./board.js";
+import { setLang, t } from "./i18n.js?v=147";
 import {
   BACKUP_KEY,
   BOARD_KEY,
@@ -329,6 +329,51 @@ test("a normally exported save code validates and imports", () => {
   assert.equal(JSON.parse(storage.getItem(BOARD_KEY)).titleId, "combo_5");
   const backup = JSON.parse(storage.getItem(BACKUP_KEY));
   assert.deepEqual(backup.data, before);
+});
+
+test("a prefixed code with no checksum says the code is incomplete", () => {
+  const code = encodeSaveCode(sampleData(), NOW);
+  const payload = code.slice("5050CUT1:".length).split(".")[0];
+  assert.equal(decodeSaveCode(`5050CUT1:${payload}`).error, "incomplete");
+  assert.equal(decodeSaveCode(`5050CUT1:${payload}.`).error, "incomplete");
+  assert.equal(decodeSaveCode("5050CUT1:").error, "incomplete");
+  assert.equal(decodeSaveCode("5050CUT2:abc.def").error, "prefix");
+  assert.equal(decodeSaveCode("").error, "empty");
+  const edited = [...code];
+  const at = code.indexOf(":") + 3;
+  edited[at] = edited[at] === "A" ? "B" : "A";
+  assert.equal(decodeSaveCode(edited.join("")).error, "checksum");
+  for (const [lang, needle, prefix] of [
+    ["zh-Hans", "缺少校验码", "开头应为 5050CUT1:"],
+    ["zh-Hant", "缺少校驗碼", "開頭應為 5050CUT1:"],
+    ["en", "missing the checksum", "should start with 5050CUT1:"],
+  ]) {
+    setLang(lang);
+    const text = saveErrorText("incomplete", true);
+    assert.equal(text.includes(needle), true, text);
+    assert.equal(text.includes("5050CUT1:"), false, text);
+    assert.equal(saveErrorText("prefix", true).includes(prefix), true, saveErrorText("prefix", true));
+    assert.equal(saveErrorText("empty", true).includes(needle), false);
+    assert.equal(saveErrorText("checksum", true).includes(needle), false);
+  }
+});
+
+test("copy fallback says long-press on a coarse pointer and shortcuts otherwise", () => {
+  assert.equal(saveCopyManualKey(true), "saveCopyManual");
+  assert.equal(saveCopyManualKey(false), "saveCopyManualFine");
+  for (const [lang, coarse, fine] of [
+    ["zh-Hans", "长按", "请手动复制（Ctrl+C / ⌘C）"],
+    ["zh-Hant", "長按", "請手動複製（Ctrl+C / ⌘C）"],
+    ["en", "Long-press", "Ctrl+C / ⌘C"],
+  ]) {
+    setLang(lang);
+    const touch = t(saveCopyManualKey(true));
+    const desktop = t(saveCopyManualKey(false));
+    assert.equal(touch.includes(coarse), true, touch);
+    assert.equal(desktop.includes(fine), true, desktop);
+    assert.equal(desktop.includes(coarse), false, desktop);
+    assert.equal(touch.includes("Ctrl+C"), false, touch);
+  }
 });
 
 test("backup write failure does not change the save", () => {
