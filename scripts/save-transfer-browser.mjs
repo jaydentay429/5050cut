@@ -84,8 +84,8 @@ function harnessHtml() {
       });
     </script>
     <script type="module">
-      import { promptBoardName } from "/src/board.js?v=16";
-      import { layoutButtons } from "/src/ui.js?v=150";
+      import { promptBoardName } from "/src/board.js?v=18";
+      import { layoutButtons } from "/src/ui.js?v=152";
       const scene = document.getElementById("scene");
       scene.width = window.innerWidth;
       scene.height = window.innerHeight;
@@ -530,7 +530,7 @@ async function runWidth(browser, origin, width) {
   if (!decoded.ok) throw new Error(`export decode ${decoded.error}`);
   if (JSON.parse(decoded.data["perfect-slice-board"]).name !== "切客·阿明") throw new Error("chinese name missing");
   await page.click("[data-export-copy]");
-  await page.waitForFunction(() => (document.querySelector("[data-export-status]")?.textContent || "").includes("长按"));
+  await page.waitForFunction(() => (document.querySelector("[data-export-status]")?.textContent || "").includes("Ctrl+C"));
   const selected = await page.evaluate(() => {
     const field = document.querySelector("[data-export-text]");
     return field.selectionStart === 0 && field.selectionEnd === field.value.length && document.activeElement === field;

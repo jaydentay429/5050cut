@@ -2,20 +2,70 @@
  * 入口：创建 Canvas / WebGL、处理窗口尺寸、驱动游戏循环。
  * 浏览器专属 API（window / document / canvas）集中在这一文件、input.js 和 audio.js。
  */
-import { Game } from "./game.js?v=150";
+import { Game } from "./game.js?v=152";
 import { attachInput } from "./input.js?v=80";
-import { catalogTypes } from "./object.js?v=84";
-import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=124";
-import { createScene } from "./scene.js?v=105";
+import { catalogTypes } from "./object.js?v=86";
+import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=126";
+import { createScene } from "./scene.js?v=107";
 import { CONFIG } from "./config.js?v=105";
-import { t } from "./i18n.js?v=146";
+import { t } from "./i18n.js?v=148";
+
+// 触屏 pointerup 上的 preventDefault 拦不住浏览器随后补发的 click。
+// 返回主菜单的同一帧如果把隐私链接显示出来，补发的 click 会落在右下角链接上。
+const PRIVACY_HOLD_MS = 400;
+let privacyBootstrapped = false;
+let privacyRevealAt = 0;
+let privacyClickBlockUntil = 0;
+
+function isKeyboardActivation(event) {
+  if (event.detail === 0) return true;
+  const caps = event.sourceCapabilities;
+  return Boolean(caps) && caps.firesTouchEvents === false && event.button === 0 && event.clientX === 0 && event.clientY === 0;
+}
+
+function armPrivacyClickGuard() {
+  const link = document.getElementById("privacy-link");
+  if (!link || link.dataset.privacyGuard === "1") return;
+  link.dataset.privacyGuard = "1";
+  link.addEventListener(
+    "click",
+    (event) => {
+      if (performance.now() >= privacyClickBlockUntil) return;
+      if (isKeyboardActivation(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    true,
+  );
+}
 
 function syncPrivacyLink(game) {
   const link = document.getElementById("privacy-link");
   if (!link) return;
+  armPrivacyClickGuard();
   const langOpen = game.prompt?.mode === "lang";
   const hide = game.state !== "menu" || langOpen;
-  if (link.hidden !== hide) link.hidden = hide;
+  if (!privacyBootstrapped) {
+    privacyBootstrapped = true;
+    link.hidden = hide;
+    return;
+  }
+  if (hide) {
+    privacyRevealAt = 0;
+    if (!link.hidden) link.hidden = true;
+    return;
+  }
+  const now = performance.now();
+  if (link.hidden && !privacyRevealAt) {
+    privacyRevealAt = now + PRIVACY_HOLD_MS;
+    privacyClickBlockUntil = privacyRevealAt + 50;
+  }
+  if (privacyRevealAt && now < privacyRevealAt) {
+    link.hidden = true;
+    return;
+  }
+  privacyRevealAt = 0;
+  if (link.hidden) link.hidden = false;
 }
 
 const sceneCanvas = document.getElementById("scene");
