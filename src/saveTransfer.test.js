@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { saveCopyManualKey, saveErrorText } from "./board.js";
-import { setLang, t } from "./i18n.js?v=147";
+import { setLang, t } from "./i18n.js?v=148";
 import {
   BACKUP_KEY,
   BOARD_KEY,
@@ -355,6 +355,21 @@ test("a prefixed code with no checksum says the code is incomplete", () => {
     assert.equal(saveErrorText("prefix", true).includes(prefix), true, saveErrorText("prefix", true));
     assert.equal(saveErrorText("empty", true).includes(needle), false);
     assert.equal(saveErrorText("checksum", true).includes(needle), false);
+  }
+});
+
+test("rename hint tells you to export and import before switching devices", () => {
+  const cases = {
+    "zh-Hans": ["导出存档", "导入存档", "新账号"],
+    "zh-Hant": ["匯出存檔", "匯入存檔", "新帳號"],
+    en: ["Export save", "Import save", "new account"],
+  };
+  for (const [lang, [exportLabel, importLabel, retired]] of Object.entries(cases)) {
+    setLang(lang);
+    const text = t("nickBody");
+    assert.equal(text.includes(exportLabel), true, text);
+    assert.equal(text.includes(importLabel), true, text);
+    assert.equal(text.includes(retired), false, text);
   }
 });
 

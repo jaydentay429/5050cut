@@ -2,13 +2,13 @@
  * 入口：创建 Canvas / WebGL、处理窗口尺寸、驱动游戏循环。
  * 浏览器专属 API（window / document / canvas）集中在这一文件、input.js 和 audio.js。
  */
-import { Game } from "./game.js?v=151";
+import { Game } from "./game.js?v=152";
 import { attachInput } from "./input.js?v=80";
-import { catalogTypes } from "./object.js?v=85";
-import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=125";
-import { createScene } from "./scene.js?v=106";
+import { catalogTypes } from "./object.js?v=86";
+import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=126";
+import { createScene } from "./scene.js?v=107";
 import { CONFIG } from "./config.js?v=105";
-import { t } from "./i18n.js?v=147";
+import { t } from "./i18n.js?v=148";
 
 // 触屏 pointerup 上的 preventDefault 拦不住浏览器随后补发的 click。
 // 返回主菜单的同一帧如果把隐私链接显示出来，补发的 click 会落在右下角链接上。
