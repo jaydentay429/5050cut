@@ -1,4 +1,4 @@
-/* Shared chrome for static pages. The game canvas in style.css locks the viewport. */
+/* Shared chrome for static pages. The game page scrolls; style.css locks it while a round is open. */
 *,
 *::before,
 *::after {

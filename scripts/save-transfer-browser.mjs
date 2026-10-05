@@ -60,9 +60,16 @@ function harnessHtml() {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>save transfer harness</title>
-    <link rel="stylesheet" href="/style.css?v=13" />
+    <link rel="stylesheet" href="/style.css?v=14" />
+    <style>
+      html, body { overflow: hidden !important; }
+    </style>
   </head>
   <body>
+    <div id="stage">
+      <canvas id="scene"></canvas>
+      <canvas id="game"></canvas>
+    </div>
     <main id="about">
       <h1>50/50 Cut</h1>
       <p>
@@ -72,10 +79,6 @@ function harnessHtml() {
         A slice through the exact center scores 100. The farther the cut sits from the middle, the lower the score, and a cut too far off center scores nothing.
       </p>
     </main>
-    <div id="stage">
-      <canvas id="scene"></canvas>
-      <canvas id="game"></canvas>
-    </div>
     ${block}
     <script>
       window.__errors = [];

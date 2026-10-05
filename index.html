@@ -1,35 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hans">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
-    <title>50/50 Cut — Slice through the center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>50/50 Cut 对半切：免费在线 3D 切东西小游戏</title>
     <meta
       name="description"
-      content="Swipe through the center of an object to cut it in half. A centered cut scores 100, and cuts of 85 or higher build a combo. Free in the browser."
+      content="50/50 Cut（对半切）是一款免费的浏览器 3D 小游戏。在物体正中间划一刀，把它切成两半；越接近正中分数越高，正中满分 100，85 分以上能连击。十个摊位、一百件物品，不用下载。"
     />
     <link rel="canonical" href="https://5050cut.com/" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="50/50 Cut — Slice through the center" />
+    <meta property="og:title" content="50/50 Cut 对半切：免费在线 3D 切东西小游戏" />
     <meta
       property="og:description"
-      content="Swipe through the center of an object to cut it in half. A centered cut scores 100, and cuts of 85 or higher build a combo. Free in the browser."
+      content="50/50 Cut（对半切）是一款免费的浏览器 3D 小游戏。在物体正中间划一刀，把它切成两半；越接近正中分数越高，正中满分 100，85 分以上能连击。十个摊位、一百件物品，不用下载。"
     />
     <meta property="og:url" content="https://5050cut.com/" />
     <meta property="og:image" content="https://5050cut.com/assets/env/fruit_stall.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="50/50 Cut — Slice through the center" />
+    <meta name="twitter:title" content="50/50 Cut 对半切：免费在线 3D 切东西小游戏" />
     <meta
       name="twitter:description"
-      content="Swipe through the center of an object to cut it in half. A centered cut scores 100, and cuts of 85 or higher build a combo. Free in the browser."
+      content="50/50 Cut（对半切）是一款免费的浏览器 3D 小游戏。在物体正中间划一刀，把它切成两半；越接近正中分数越高，正中满分 100，85 分以上能连击。十个摊位、一百件物品，不用下载。"
     />
     <meta name="twitter:url" content="https://5050cut.com/" />
     <meta name="twitter:image" content="https://5050cut.com/assets/env/fruit_stall.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "url": "https://5050cut.com/",
+            "name": "50/50 Cut 对半切",
+            "inLanguage": ["zh-Hans", "en"],
+            "publisher": { "@id": "https://webpawsstudio.com/#org" }
+          },
+          {
+            "@type": "VideoGame",
+            "name": "50/50 Cut 对半切",
+            "description": "50/50 Cut（对半切）是一款免费的浏览器 3D 小游戏：在物体正中间划一刀，把它切成两半；越接近正中分数越高，正中满分 100，85 分以上能连击。共 10 个摊位、100 件可切物品，不用下载，手机和电脑都能玩。",
+            "url": "https://5050cut.com/",
+            "genre": "休闲",
+            "gamePlatform": "Web browser",
+            "applicationCategory": "Game",
+            "operatingSystem": "Any",
+            "inLanguage": ["zh-Hans", "en"],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "publisher": { "@id": "https://webpawsstudio.com/#org" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://webpawsstudio.com/#org",
+            "name": "WebPaws Studio",
+            "url": "https://webpawsstudio.com"
+          }
+        ]
+      }
+    </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/style.css?v=13" />
+    <link rel="stylesheet" href="/style.css?v=14" />
+    <link rel="stylesheet" href="/pages.css?v=2" />
     <link rel="preload" href="/vendor/draco/draco_decoder.wasm" as="fetch" crossorigin />
     <script
       async
@@ -49,26 +84,100 @@
     <div id="stage">
       <canvas id="scene"></canvas>
       <canvas id="game"></canvas>
+      <a id="about-jump" href="#about">玩法与介绍 ↓</a>
       <div id="boot-load" aria-live="polite">
         <p id="boot-load-title" data-i18n="title">50/50 Cut</p>
         <p id="boot-load-text" data-i18n="boot">Setting the table…</p>
         <div id="boot-load-track">
           <div id="boot-load-bar"></div>
         </div>
-        <p id="boot-blurb">
-          Swipe through the center to cut an object in half. A centered cut scores 100, and cuts of 85 or higher build a combo.
-        </p>
       </div>
     </div>
-    <main id="about">
-      <h1>50/50 Cut</h1>
-      <p>
-        Swipe through the center of the object to cut it in half. If the middle is hard to judge, drag the pad on the right to turn the object, then cut.
-      </p>
-      <p>
-        A slice through the exact center scores 100. The farther the cut sits from the middle, the lower the score, and a cut too far off center scores nothing. Cuts of 85 or higher keep a combo going, and each extra cut in that combo is worth a little more. Fill the album as you go, and climb the board.
-      </p>
+    <main id="about" class="site-main">
+      <h1>50/50 Cut 对半切：免费在线 3D 切东西小游戏</h1>
+      <p>50/50 Cut（对半切）是一款免费的浏览器 3D 小游戏：在物体正中间划一刀，把它切成两半；越接近正中分数越高，正中满分 100，85 分以上能连击。共 10 个摊位、100 件可切物品，不用下载，手机和电脑都能玩。</p>
+      <h2>怎么玩</h2>
+      <p>打开网页，首屏就是游戏。想看这段说明，点画面上的「玩法与介绍」，或把页面往下滚。主菜单按下「开始游戏」后，一件东西会落到桌上。用手指或鼠标从它身上划过去，把它切成两半。正中如果不好判断，按住画面右边的转盘拖动，先把物体转到顺手的角度，再下刀。</p>
+      <p>手指滑动短于 28 像素时，这一刀不计入，本局继续。没有切到物体，本局结束。基础分低于 85，连击回到 0，本局也结束。连续切满 5 刀、而且这 5 刀都没有把本局切断，就走到下一个摊位。十个摊位走完以后再从水果摊开始，可以一直切下去。</p>
+      <p>商店里可以用代币买三样东西。再试刀卖 5 枚：本局因为分数低于 85 或没切到而结束时，用掉一次，会再切刚才那一件。准星卖 2 枚，用在下一刀；这一刀若切中或没切到，准星就会关掉，短于 28 像素、因而没计入的滑动不会把它用掉。准星还开着的时候，刀路两端的横坐标离准星的平均距离不超过 16 像素，或者两侧体积占比和一半的差已经不超过 0.025，这一刀按正中计分，两边各一半。点名卖 10 枚，只能指定已经切过、并且记进图鉴的物品。选中大隐藏时，按标价 15 补上和 10 之间的差额；大隐藏每个本地日期只能点名一次。</p>
+      <p>画面语言可以在菜单里切换简体、繁体或英文。声音可以关掉。语言和静音都记在这台浏览器里。</p>
+      <p><a href="/guide/how-to-play">完整玩法指南</a></p>
+      <h2>怎么计分</h2>
+      <p>这一刀看的是切开以后两边的体积。正中时两边一样多，基础分是 100。偏离正中的程度叫偏差：一边的体积占比减去 0.5，再取绝对值。正中偏差是 0，切到只剩一边时偏差是 0.5。偏差达到或超过 0.36，基础分是 0。偏差还没到 0.36 时，基础分 = round(100 × (1 − (偏差 / 0.36) ^ 1.35))，四舍五入用的是 JavaScript 的 Math.round。同样的偏差，中间一段比一条直线扣得少。</p>
+      <p>基础分达到 85，连击加 1。低于 85，连击回到 0，本局结束。连击的加成分从第 2 刀开始算：这一刀实际加进总分的分数，等于基础分乘以（1 加上（连击数减 1）乘以 0.12），再四舍五入。第一刀连上时只有基础分，第二刀是基础分的 1.12 倍，第三刀是 1.24 倍，之后每多连一刀再多 0.12 倍。</p>
+      <p>基础分达到 98，评价是「精准！」。往下是：85 分及以上「漂亮」，70 分及以上「还行」，大于 0 分「偏了」，0 分「没切中」。没切到物体时提示「没切到」。连续 10 刀都达到 98 分，奖励 1 枚代币；中间有一刀低于 98，这段连续重新数。连续 12 刀都是 100 分，奖励 1 枚代币，并多给 1 次再试刀；中间有一刀不是 100，这段也重新数。</p>
+      <p>一局结束时，按本局最高连击和最高一刀给称号，先符合的那条为准：最高连击达到 20，或者连击达到 12 并且有一刀至少 99 分，是「传说」；连击达到 12 是「宗师」；连击达到 8，或者有一刀至少 99 分，是「神刀」；连击达到 4 是「刀客」；连击达到 1 是「学徒」；一刀都没有连上是「新刀」。连击达到 3 显示「连上了」，达到 5 换成「手感来了」，达到 8 换成「热刀」，达到 12 换成「停不下来」，达到 16 换成「刀神降临」。没到下一档之前，短句保持不变。</p>
+      <p>图鉴记下每件物品切过几次，以及这件的最高基础分。收藏分把一百件的最高基础分加起来，每件最多算 100，满分 10000。一件物品切过一次是 1 颗星，最高分达到 85 是 2 颗星，达到 100 是 3 颗星。一个摊位十件都切过，得到「摊位章」；十件最高分都达到 85，得到「铜杯」；十件都达到 100，得到「金杯」。十个摊位都是金杯时，菜单上会出现「刀神奖杯」。</p>
+      <p><a href="/guide/scoring">计分规则详解</a></p>
+      <h2>十个摊位</h2>
+      <p>摊位名字和每摊的十件物品以游戏场景表为准，顺序如下。每一摊的倒数第二件是小隐藏，最后一件是大隐藏，其余八件是常见。抽到哪一件按权重：常见 16，小隐藏 4，大隐藏 1，没有保底。菜单上标着「今日」的那一摊，小隐藏和大隐藏的权重再乘 2。今日摊位按协调世界时每 86400000 毫秒换一档，十个摊位轮流，和点名大隐藏用的本地日期不是同一套算法。</p>
+      <ul>
+        <li>水果摊：苹果、梨、橙子、香蕉、草莓、柠檬、芒果、桃子、果汁、水果礼盒。</li>
+        <li>菜园：胡萝卜、黄瓜、玉米、茄子、番茄、青椒、萝卜、南瓜、洒水壶、镰刀。</li>
+        <li>花园：玫瑰、郁金香、雏菊、向日葵、百合、罂粟、薰衣草、兰花、水管、肥料。</li>
+        <li>点心房：蛋糕、面包、芝士、饭团、可颂、甜甜圈、饼干、贝果、擀面杖、点心盒。</li>
+        <li>糖果屋：棒棒糖、巧克力、马卡龙、冰棒、软糖、棉花糖、拐杖糖、薄荷糖、糖果罐、铁盒。</li>
+        <li>书桌：铅笔、橡皮、蜡笔、尺子、钢笔、马克笔、粉笔、胶水、剪刀、墨水瓶。</li>
+        <li>厨房：香肠、鸡蛋、蘑菇、蒜头、火腿、豆腐、饺子、法棍、菜刀、平底锅。</li>
+        <li>夜市：烤串、包子、华夫饼、吉拿棒、章鱼烧、玉米狗、糖葫芦、珍珠奶茶、酱瓶、纸袋。</li>
+        <li>玩具箱：积木、皮球、小黄鸭、陀螺、悠悠球、哨子、火车、机器人、小熊、玩具锤。</li>
+        <li>矿洞：水晶、晶洞、煤炭、金条、红宝石、翡翠、紫晶、化石、镐、矿灯。</li>
+      </ul>
+      <p>上面每一行十件，十行一共一百件。英文界面里，这十个摊位依次显示为 Fruit stall、Garden、Florist、Bakery、Candy shop、Desk、Kitchen、Night market、Toy box、Mine。</p>
+      <h2>存档和排行榜</h2>
+      <p>不用注册，也没有登录。历史最高分、图鉴、代币、静音和排行榜昵称都记在这台浏览器的本地存储里。换浏览器，或清掉这个网站的数据，这些记录会一起消失。</p>
+      <p>想把存档带到另一台设备：在主菜单打开「排行」，再打开「改名」。那里可以导出一段存档码，也可以把存档码导入。存档码里含有排行榜 id，这个 id 等于账户钥匙，不要发给别人。导入会覆盖那台设备上的当前存档，并换成存档码里的排行榜身份；那台设备原来的排行榜那一行会留在榜上，之后不能再改。两台设备的存档不能合并成一份，导入是覆盖，不是合并。</p>
+      <p>提交分数时，服务器按 IP 所在的国家写入该国榜和全球榜。榜上保存随机设备 id、你设置的昵称、一个可选的成就头衔、分数和国家代码。昵称自己改，2 到 12 个字，可以用中文、字母、数字，以及空格和 . _ - ·。头衔只能选已经解锁的成就名，不能随便填。不要把真实姓名、电话或网址写进昵称。国家榜和全球榜各自列出前 30 名。</p>
+      <p>清除浏览器里这个网站的数据，会删掉本机存档，并生成一个新的排行榜 id。要删榜上的一条记录，先在改名窗口复制排行榜 id，再按<a href="/privacy">隐私页</a>上的说明写信。站点还有<a href="/about">关于</a>和<a href="/contact">联系</a>。</p>
+      <section lang="en" class="about-en">
+        <h2>50/50 Cut in English</h2>
+        <p>50/50 Cut is a free 3D game in the browser. Swipe through the middle of an object and cut it in two. The closer the cut sits to the center, the higher the score. A centered cut scores 100. A base score of 85 or higher keeps a combo going. There are 10 stalls and 100 things to cut. Nothing to download. Phones and computers both run it. The first screen is the game. The notes below are the same rules, in English, and they stay on the page where you can scroll to them.</p>
+        <h2>How to play</h2>
+        <p>From the main menu, press Play. An object drops onto the table. Drag a finger or the mouse across it to slice it into two pieces. If the middle is hard to judge, drag the pad on the right to turn the object, then cut. A stroke shorter than 28 pixels does not count, and the run continues. Missing the object ends the run. A base score under 85 resets the combo to 0 and also ends the run. Five cuts in a row that do not end the run move you to the next stall. After the tenth stall the run returns to the fruit stall and can keep going.</p>
+        <p>The shop sells three items for tokens. Retry cut costs 5. When a run ends because the score was under 85 or the stroke missed, spending one retry cuts that same object again. Guide costs 2 and applies to the next cut. A hit or a miss spends it. A stroke shorter than 28 pixels does not spend it, because that stroke never counts. While the guide is on, the cut scores as a perfect center, half and half, if the average horizontal distance from the two ends of the stroke to the guide is 16 pixels or less, or if each side's volume share is already within 0.025 of one half. Summon costs 10 and can name only an object you have already cut and stored in the album. Naming a secret pays the gap up to the listed price of 15, and a secret can be named only once per local calendar day.</p>
+        <p>The menu switches the on-screen language among Simplified Chinese, Traditional Chinese, and English. Sound can be muted. Language and mute stay in this browser.</p>
+        <h2>How scoring works</h2>
+        <p>A cut is scored from the two volumes it leaves behind. At the exact center the two sides match and the base score is 100. Deviation is the absolute difference between one side's volume share and 0.5. The center is deviation 0. A cut that leaves everything on one side is deviation 0.5. When deviation reaches 0.36 or more, the base score is 0. Below 0.36 the base score is round(100 × (1 − (deviation / 0.36) ^ 1.35)). Rounding is JavaScript Math.round. Through the middle of that range the score falls more slowly than a straight line.</p>
+        <p>A base score of 85 or more adds one to the combo. Under 85 the combo returns to 0 and the run ends. Combo pay starts on the second cut in the chain. Points added to the total are the base score times one plus (combo minus 1) times 0.12, then rounded. The first linked cut adds only its base score. The second pays 1.12 times the base score, the third pays 1.24 times, and each further link adds another 0.12.</p>
+        <p>A base score of 98 or more is graded Perfect! Nice starts at 85, OK starts at 70, Off is any score above 0, and Miss is 0. A stroke that misses the object shows Miss. Ten cuts in a row at 98 or better award 1 token. A cut under 98 starts that count over. Twelve cuts in a row at exactly 100 award 1 token and one Retry cut. Any cut that is not 100 starts that count over.</p>
+        <p>When the run ends, the best combo and the best single cut pick a title. The first matching line wins. Combo 20 or more, or combo 12 or more together with a cut of at least 99, is Legend. Combo 12 or more is Master. Combo 8 or more, or any cut of at least 99, is Ace. Combo 4 or more is Cutter. Combo 1 or more is Novice. No linked cut at all is New blade. At combo 3 the short label becomes Linked. It becomes In the zone at 5, Hot knife at 8, On fire at 12, and Blade storm at 16. The label stays until the next threshold.</p>
+        <p>The album stores how many times you cut each object and that object's best base score. Collection score adds those hundred best scores. Each object contributes at most 100, so the maximum is 10000. One star means the object has been cut. Two stars means its best score reached 85. Three stars means its best score reached 100. Cutting all ten objects at a stall awards Seen. A best of 85 on all ten awards Bronze. A best of 100 on all ten awards Gold. When all ten stalls are Gold, the menu shows Blade Master.</p>
+        <h2>The ten stalls</h2>
+        <p>Names below are the English labels. Each stall lists ten objects. The second to last object in each list is the rare, and the last object is the secret. The other eight are common. Weights are 16 for a common, 4 for a rare, and 1 for a secret. There is no pity timer. On the stall marked Today, rare and secret weights are doubled. That stall changes every 86400000 milliseconds of Coordinated Universal Time and cycles through the ten stalls. It does not use the local calendar day that limits secret summons.</p>
+        <ul>
+          <li>Fruit stall: Apple, Pear, Orange, Banana, Strawberry, Lemon, Mango, Peach, Juice, Fruit box.</li>
+          <li>Garden: Carrot, Cucumber, Corn, Eggplant, Tomato, Pepper, Radish, Pumpkin, Watering can, Sickle.</li>
+          <li>Florist: Rose, Tulip, Daisy, Sunflower, Lily, Poppy, Lavender, Orchid, Hose, Fertilizer.</li>
+          <li>Bakery: Cake, Bread, Cheese, Onigiri, Croissant, Donut, Cookie, Bagel, Rolling pin, Pastry box.</li>
+          <li>Candy shop: Lollipop, Chocolate, Macaron, Popsicle, Gumdrop, Marshmallow, Candy cane, Mint, Candy jar, Tin.</li>
+          <li>Desk: Pencil, Eraser, Crayon, Ruler, Pen, Marker, Chalk, Glue, Scissors, Inkwell.</li>
+          <li>Kitchen: Sausage, Egg, Mushroom, Garlic, Ham, Tofu, Dumpling, Baguette, Cleaver, Pan.</li>
+          <li>Night market: Skewer, Bao, Waffle, Churro, Takoyaki, Corn dog, Tanghulu, Boba, Sauce, Paper bag.</li>
+          <li>Toy box: Block, Ball, Duck, Top, Yo-yo, Whistle, Train, Robot, Teddy, Toy hammer.</li>
+          <li>Mine: Crystal, Geode, Coal, Gold bar, Ruby, Emerald, Amethyst, Fossil, Pickaxe, Lantern.</li>
+        </ul>
+        <p>Ten lines of ten objects make one hundred objects.</p>
+        <h2>Saves and the leaderboard</h2>
+        <p>There is no account and no sign-in. High score, album, tokens, mute, and the leaderboard nickname are stored in this browser. Switching browsers, or clearing this site's data, removes them.</p>
+        <p>To move a save: open Board on the main menu, then open Rename. That dialog can export a save code and import one. The code contains the leaderboard id, which is the account key. Do not send it to anyone. Import overwrites the save on that device and replaces its leaderboard id. The row that device already had stays on the board and can no longer be changed. Saves from two devices cannot be merged. Import overwrites. It does not merge.</p>
+        <p>When you submit a score, the server uses the country of the IP to write that country's board and the global board. It stores a random device id, the nickname you set, an optional achievement title, the score, and the country code. You choose the nickname. It must be 2 to 12 characters: letters, numbers, spaces, and . _ - · . A title can only be an achievement you have already unlocked. Do not put a real name, a phone number, or a URL in the nickname. Each board lists 30 rows.</p>
+        <p>Clearing this site's data deletes the local save and creates a new leaderboard id. To remove a board row, copy the id from Rename and follow the <a href="/privacy">privacy page</a>. The site also has <a href="/about">about</a> and <a href="/contact">contact</a> pages.</p>
+      </section>
+      <p><a href="/faq">常见问题</a></p>
     </main>
+    <footer class="site-footer">
+      <nav class="site-footer-nav" aria-label="页脚">
+        <a href="/">首页</a>
+        <a href="/about">关于</a>
+        <a href="/contact">联系</a>
+        <a href="/privacy">隐私</a>
+        <a href="/terms">条款</a>
+        <a href="/guide/how-to-play">玩法</a>
+        <a href="/guide/scoring">计分</a>
+        <a href="/faq">常见问题</a>
+      </nav>
+      <p class="site-copy">© 2026 WebPaws Studio</p>
+    </footer>
     <a id="privacy-link" href="/privacy" data-i18n="privacy">Privacy</a>
     <script>
       window.addEventListener("error", function (event) {
@@ -162,6 +271,6 @@
         <button type="button" class="ghost" data-name-cancel data-i18n="cancel">取消</button>
       </form>
     </div>
-    <script type="module" src="/src/main.js?v=152"></script>
+    <script type="module" src="/src/main.js?v=153"></script>
   </body>
 </html>
