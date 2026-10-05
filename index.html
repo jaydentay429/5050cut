@@ -99,7 +99,7 @@
       <h2>怎么玩</h2>
       <p>打开网页，首屏就是游戏。想看这段说明，点画面上的「玩法与介绍」，或把页面往下滚。主菜单按下「开始游戏」后，一件东西会落到桌上。用手指或鼠标从它身上划过去，把它切成两半。正中如果不好判断，按住画面右边的转盘拖动，先把物体转到顺手的角度，再下刀。</p>
       <p>手指滑动短于 28 像素时，这一刀不计入，本局继续。没有切到物体，本局结束。基础分低于 85，连击回到 0，本局也结束。连续切满 5 刀、而且这 5 刀都没有把本局切断，就走到下一个摊位。十个摊位走完以后再从水果摊开始，可以一直切下去。</p>
-      <p>商店里可以用代币买三样东西。再试刀卖 5 枚：本局因为分数低于 85 或没切到而结束时，用掉一次，会再切刚才那一件。准星卖 2 枚，用在下一刀；这一刀若切中或没切到，准星就会关掉，短于 28 像素、因而没计入的滑动不会把它用掉。准星还开着的时候，刀路两端的横坐标离准星的平均距离不超过 16 像素，或者两侧体积占比和一半的差已经不超过 0.025，这一刀按正中计分，两边各一半。点名卖 10 枚，只能指定已经切过、并且记进图鉴的物品。选中大隐藏时，按标价 15 补上和 10 之间的差额；大隐藏每个本地日期只能点名一次。</p>
+      <p>商店里可以用代币买三样东西。再试刀卖 5 枚：本局因为分数低于 85 或没切到而结束时，用掉一次，会再切刚才那一件。准星卖 2 枚，用在下一刀；这一刀若切中或没切到，准星就会关掉，短于 28 像素、因而没计入的滑动不会把它用掉。准星还开着的时候，刀路两端的横坐标离准星的平均距离不超过 16 像素，或者两侧体积占比和一半的差已经不超过 0.025，这一刀按正中计分，两边各一半。点名卖 10 枚，只能指定已经切过、并且记进图鉴的物品。选中大隐藏时再扣 5 枚，每个本地日期只能点名一次。</p>
       <p>画面语言可以在菜单里切换简体、繁体或英文。声音可以关掉。语言和静音都记在这台浏览器里。</p>
       <p><a href="/guide/how-to-play">完整玩法指南</a></p>
       <h2>怎么计分</h2>
@@ -134,7 +134,7 @@
         <p>50/50 Cut is a free 3D game in the browser. Swipe through the middle of an object and cut it in two. The closer the cut sits to the center, the higher the score. A centered cut scores 100. A base score of 85 or higher keeps a combo going. There are 10 stalls and 100 things to cut. Nothing to download. Phones and computers both run it. The first screen is the game. The notes below are the same rules, in English, and they stay on the page where you can scroll to them.</p>
         <h2>How to play</h2>
         <p>From the main menu, press Play. An object drops onto the table. Drag a finger or the mouse across it to slice it into two pieces. If the middle is hard to judge, drag the pad on the right to turn the object, then cut. A stroke shorter than 28 pixels does not count, and the run continues. Missing the object ends the run. A base score under 85 resets the combo to 0 and also ends the run. Five cuts in a row that do not end the run move you to the next stall. After the tenth stall the run returns to the fruit stall and can keep going.</p>
-        <p>The shop sells three items for tokens. Retry cut costs 5. When a run ends because the score was under 85 or the stroke missed, spending one retry cuts that same object again. Guide costs 2 and applies to the next cut. A hit or a miss spends it. A stroke shorter than 28 pixels does not spend it, because that stroke never counts. While the guide is on, the cut scores as a perfect center, half and half, if the average horizontal distance from the two ends of the stroke to the guide is 16 pixels or less, or if each side's volume share is already within 0.025 of one half. Summon costs 10 and can name only an object you have already cut and stored in the album. Naming a secret pays the gap up to the listed price of 15, and a secret can be named only once per local calendar day.</p>
+        <p>The shop sells three items for tokens. Retry cut costs 5. When a run ends because the score was under 85 or the stroke missed, spending one retry cuts that same object again. Guide costs 2 and applies to the next cut. A hit or a miss spends it. A stroke shorter than 28 pixels does not spend it, because that stroke never counts. While the guide is on, the cut scores as a perfect center, half and half, if the average horizontal distance from the two ends of the stroke to the guide is 16 pixels or less, or if each side's volume share is already within 0.025 of one half. Summon costs 10 and can name only an object you have already cut and stored in the album. Naming a secret costs 5 more tokens, and a secret can be named only once per local calendar day.</p>
         <p>The menu switches the on-screen language among Simplified Chinese, Traditional Chinese, and English. Sound can be muted. Language and mute stay in this browser.</p>
         <h2>How scoring works</h2>
         <p>A cut is scored from the two volumes it leaves behind. At the exact center the two sides match and the base score is 100. Deviation is the absolute difference between one side's volume share and 0.5. The center is deviation 0. A cut that leaves everything on one side is deviation 0.5. When deviation reaches 0.36 or more, the base score is 0. Below 0.36 the base score is round(100 × (1 − (deviation / 0.36) ^ 1.35)). Rounding is JavaScript Math.round. Through the middle of that range the score falls more slowly than a straight line.</p>
@@ -271,6 +271,6 @@
         <button type="button" class="ghost" data-name-cancel data-i18n="cancel">取消</button>
       </form>
     </div>
-    <script type="module" src="/src/main.js?v=153"></script>
+    <script type="module" src="/src/main.js?v=154"></script>
   </body>
 </html>
