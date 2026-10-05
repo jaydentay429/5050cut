@@ -137,7 +137,10 @@ body.site-page {
 .crumbs [aria-current="page"] {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 44px;
+  min-width: 44px;
+  padding: 0 8px;
 }
 
 .crumbs a + a::before,
