@@ -2,11 +2,19 @@
  * 鼠标 + 触屏统一走 Pointer Events。只在这一文件使用浏览器事件 API。
  */
 
+/**
+ * 指针、触摸和点击共用。每次事件用 client 坐标减去当下画布矩形，
+ * 再按画布布局尺寸相对矩形的比例，换到菜单按钮和切割使用的像素。
+ */
 function eventToPoint(canvas, event) {
   const rect = canvas.getBoundingClientRect();
+  const layoutW = canvas.clientWidth || rect.width || 1;
+  const layoutH = canvas.clientHeight || rect.height || 1;
+  const scaleX = rect.width ? layoutW / rect.width : 1;
+  const scaleY = rect.height ? layoutH / rect.height : 1;
   return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
+    x: (event.clientX - rect.left) * scaleX,
+    y: (event.clientY - rect.top) * scaleY,
   };
 }
 

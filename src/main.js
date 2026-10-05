@@ -3,7 +3,7 @@
  * 浏览器专属 API（window / document / canvas）集中在这一文件、input.js 和 audio.js。
  */
 import { Game } from "./game.js?v=153";
-import { attachInput } from "./input.js?v=81";
+import { attachInput } from "./input.js?v=82";
 import { catalogTypes } from "./object.js?v=87";
 import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=127";
 import { createScene } from "./scene.js?v=108";
