@@ -1,0 +1,126 @@
+/* Shared chrome for static pages. The game canvas in style.css locks the viewport. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: #1c1712;
+}
+
+body.site-page {
+  margin: 0;
+  min-height: 100%;
+  background: #1c1712;
+  color: #f3e6d0;
+  font: 16px/1.6 "PingFang SC", "Noto Sans SC", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+}
+
+.site-header,
+.site-footer {
+  background: #1c1712;
+}
+
+.site-header {
+  border-bottom: 1px solid rgba(243, 230, 208, 0.16);
+}
+
+.site-footer {
+  border-top: 1px solid rgba(243, 230, 208, 0.16);
+  padding-bottom: 28px;
+}
+
+.site-nav,
+.site-footer-nav,
+.site-copy {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.site-nav,
+.site-footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 4px 8px;
+}
+
+.site-nav {
+  justify-content: space-between;
+}
+
+.site-header a,
+.site-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  color: #e07a3d;
+  text-decoration: none;
+}
+
+.site-logo {
+  color: #f3e6d0;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.site-play,
+.site-footer a {
+  font-weight: 700;
+}
+
+.site-header a:hover,
+.site-footer a:hover,
+.site-main a:hover {
+  text-decoration: underline;
+}
+
+.site-header a:focus-visible,
+.site-footer a:focus-visible,
+.site-main a:focus-visible {
+  outline: 2px solid #e07a3d;
+  outline-offset: 2px;
+}
+
+.site-copy {
+  margin-top: 0;
+  padding: 0 20px;
+  color: #f3e6d0;
+  opacity: 0.75;
+}
+
+.site-main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+.site-main h1 {
+  font-size: 28px;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+
+.site-main h2 {
+  font-size: 18px;
+  line-height: 1.35;
+  margin: 28px 0 8px;
+}
+
+.site-main p,
+.site-main li {
+  opacity: 0.9;
+  overflow-wrap: anywhere;
+}
+
+.site-main a {
+  color: #e07a3d;
+  overflow-wrap: anywhere;
+}
+
+.site-updated {
+  margin-top: 28px;
+}

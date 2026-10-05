@@ -2,45 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
     <title>Page not found — 50/50 Cut</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <style>
-      html,
-      body {
-        margin: 0;
-        min-height: 100%;
-        background: #1c1712;
-        color: #f3e6d0;
-        font-family: "PingFang TC", "Noto Sans TC", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
-      }
-      main {
-        max-width: 32rem;
-        margin: 0 auto;
-        padding: 18vh 24px 48px;
-      }
-      h1 {
-        font-size: 1.75rem;
-        font-weight: 800;
-        margin: 0 0 12px;
-      }
-      p {
-        margin: 0 0 20px;
-        line-height: 1.5;
-        color: rgba(243, 230, 208, 0.82);
-      }
-      a {
-        color: #e07a3d;
-        font-weight: 700;
-      }
-    </style>
+    <link rel="stylesheet" href="/pages.css?v=1" />
   </head>
-  <body>
-    <main>
+  <body class="site-page">
+    <header class="site-header">
+      <nav class="site-nav" aria-label="主导航">
+        <a class="site-logo" href="/">50/50 Cut</a>
+        <a class="site-play" href="/">开始游戏</a>
+      </nav>
+    </header>
+    <main class="site-main">
       <h1>Page not found</h1>
       <p>That address is not part of 50/50 Cut.</p>
       <p><a href="/">Back to the game</a></p>
     </main>
+    <footer class="site-footer">
+      <nav class="site-footer-nav" aria-label="页脚">
+        <a href="/">首页</a>
+        <a href="/about">关于</a>
+        <a href="/contact">联系</a>
+        <a href="/privacy">隐私</a>
+      </nav>
+      <p class="site-copy">© 2026 WebPaws Studio</p>
+    </footer>
   </body>
 </html>

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Copy a Pages-ready tree to ./dist (no node_modules, no git). */
-import { cp, mkdir, rm, stat } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,6 +28,9 @@ const copies = [
   "sitemap.xml",
   "style.css",
   "privacy.html",
+  "about.html",
+  "contact.html",
+  "pages.css",
   "ads.txt",
   "favicon.svg",
   "_headers",
@@ -65,4 +68,48 @@ if (oversize.length) {
   for (const row of oversize) console.error(`  ${row.mb}MB  ${row.file}`);
   process.exit(1);
 }
+
+const sitemap = await readFile(path.join(dist, "sitemap.xml"), "utf8");
+const locs = [...sitemap.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/g)].map((match) => match[1]);
+if (!locs.length) {
+  console.error("sitemap.xml has no <loc> entries");
+  process.exit(1);
+}
+const missing = [];
+for (const loc of locs) {
+  let url;
+  try {
+    url = new URL(loc);
+  } catch {
+    missing.push(`${loc} (not a URL)`);
+    continue;
+  }
+  if (url.origin !== "https://5050cut.com") {
+    missing.push(`${loc} (unexpected origin)`);
+    continue;
+  }
+  const pathname = url.pathname;
+  if (pathname !== "/" && pathname.endsWith("/")) {
+    missing.push(`${loc} (trailing slash)`);
+    continue;
+  }
+  const rel = pathname === "/" ? "index.html" : `${pathname.replace(/^\//, "")}.html`;
+  if (rel.includes("..") || path.isAbsolute(rel)) {
+    missing.push(`${loc} (bad path)`);
+    continue;
+  }
+  try {
+    const info = await stat(path.join(dist, rel));
+    if (!info.isFile()) missing.push(`${loc} -> ${rel} (not a file)`);
+    else console.log(`sitemap ok: ${loc} -> ${rel}`);
+  } catch {
+    missing.push(`${loc} -> ${rel}`);
+  }
+}
+if (missing.length) {
+  console.error("sitemap URLs must match an .html file in the Pages output:");
+  for (const row of missing) console.error(`  ${row}`);
+  process.exit(1);
+}
+
 console.log("packed", dist);
