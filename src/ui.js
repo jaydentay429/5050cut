@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js?v=105";
-import { achieveHint, achieveTitle, getLang, t, themeName, titleIdFromStored, typeLabel } from "./i18n.js?v=148";
+import { achieveHint, achieveTitle, getLang, t, themeName, titleIdFromStored, typeLabel } from "./i18n.js?v=149";
 
 const TROPHY_CHIP = {
   none: { fill: "rgba(16, 12, 9, 0.45)", text: "rgba(243, 230, 208, 0.55)", stroke: "rgba(243, 230, 208, 0.28)" },
@@ -73,6 +73,11 @@ function layoutBuyConfirm(width, height) {
       h: menuH,
     },
   };
+}
+
+/** 点名隐藏款时多扣的币：隐藏款标价减去点名标价。和 confirmSummon 用的是同一道减法。 */
+function summonSecretExtra(prices = CONFIG.economy.prices) {
+  return prices.summonSecret - prices.summon;
 }
 
 function itemChipLabel(name, count, price) {
@@ -2516,7 +2521,7 @@ function drawSummon(ctx, width, height, model) {
   ctx.fillText(t("summonTitle"), width / 2, height * 0.16);
   ctx.fillStyle = spec.creamDim;
   ctx.font = font(Math.max(12, 13 * s), "600");
-  ctx.fillText(t("summonSecret", { n: model.prices?.summonSecret ?? 15 }), width / 2, height * 0.205);
+  ctx.fillText(t("summonSecret", { n: summonSecretExtra(model.prices) }), width / 2, height * 0.205);
   if (meta.maxScroll > 0) {
     ctx.font = font(Math.max(11, 12 * s), "600");
     ctx.fillText(t("summonScroll"), width / 2, height * 0.238);

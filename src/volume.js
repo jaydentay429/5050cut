@@ -3,9 +3,9 @@
  * 任意平面：nx x + ny y + nz z = d（物体局部坐标）。
  */
 import { CONFIG } from "./config.js?v=105";
-import { BOX_TYPES, objectHeight, radiusAt } from "./shapeProfile.js?v=85";
+import { BOX_TYPES, objectHeight, radiusAt } from "./shapeProfile.js?v=86";
 import { getItem } from "./worlds.js?v=102";
-import { fruitModelScale, fruitRestSize } from "./fruitAssets.js?v=126";
+import { fruitModelScale, fruitRestSize } from "./fruitAssets.js?v=127";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));

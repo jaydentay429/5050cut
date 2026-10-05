@@ -91,8 +91,8 @@ await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded" });
 
 async function paint(spec) {
   return page.evaluate(async (spec) => {
-    const i18n = await import("/src/i18n.js?v=148");
-    const ui = await import("/src/ui.js?v=152");
+    const i18n = await import("/src/i18n.js?v=149");
+    const ui = await import("/src/ui.js?v=153");
     i18n.setLang(spec.lang);
     const { width, height } = spec;
     const canvas = document.createElement("canvas");
@@ -384,7 +384,7 @@ for (const width of WIDTHS) {
   for (const lang of LANGS) {
     for (const [themeId, themeIndex] of themes) {
       const themeName = await page.evaluate(async ({ lang, themeId, themeIndex }) => {
-        const i18n = await import("/src/i18n.js?v=148");
+        const i18n = await import("/src/i18n.js?v=149");
         i18n.setLang(lang);
         return { name: i18n.themeName(themeId), station: i18n.t("station", { n: themeIndex + 1 }) };
       }, { lang, themeId, themeIndex });
@@ -592,7 +592,7 @@ async function frameTexts() {
 
 async function liveButtons(state, prompt) {
   return reg.evaluate(async ({ state, prompt }) => {
-    const ui = await import("/src/ui.js?v=152");
+    const ui = await import("/src/ui.js?v=153");
     const audio = await import("/src/audio.js?v=67");
     const canvas = document.getElementById("game");
     const width = parseFloat(canvas.style.width) || window.innerWidth;
