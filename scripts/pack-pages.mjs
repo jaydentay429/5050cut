@@ -30,6 +30,7 @@ const copies = [
   "privacy.html",
   "about.html",
   "contact.html",
+  "terms.html",
   "pages.css",
   "ads.txt",
   "favicon.svg",
