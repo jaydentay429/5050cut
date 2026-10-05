@@ -51,6 +51,7 @@ export function attachInput(canvas, handlers) {
   }
 
   function onWheel(event) {
+    if (!document.body.classList.contains("playing")) return;
     event.preventDefault();
     handlers.onWheel?.(event.deltaY);
   }

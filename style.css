@@ -9,11 +9,25 @@
 html,
 body {
   width: 100%;
-  height: 100%;
   margin: 0;
-  overflow: hidden;
   background: #1c1712;
   overscroll-behavior: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+}
+
+/* 菜单以外的状态由 main.js 给 body 加上 playing，锁住整页滚动。 */
+html:has(body.playing),
+body.playing {
+  overflow: hidden;
 }
 
 html[data-lang="zh-Hans"] {
@@ -29,9 +43,7 @@ html[data-lang="en"] {
 }
 
 #stage {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
+  position: relative;
   width: 100%;
   height: 100vh;
   height: 100dvh;
@@ -105,46 +117,85 @@ html[data-lang="en"] {
   background: #e07a3d;
 }
 
-#boot-blurb {
-  max-width: 22rem;
-  margin: 8px 0 0;
-  padding: 0 24px;
-  text-align: center;
-  font-size: 14px;
-  line-height: 1.45;
-  color: rgba(243, 230, 208, 0.82);
-}
-
-#about {
+#about-jump {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 0;
-  max-width: 38rem;
-  margin: 0 auto;
-  padding: 32px 20px 64px;
+  z-index: 5;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(243, 230, 208, 0.35);
+  border-radius: 999px;
+  background: rgba(16, 12, 9, 0.55);
   color: #f3e6d0;
-  font-family: "PingFang TC", "Noto Sans TC", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
-  pointer-events: none;
+  font: 700 14px/1.2 "PingFang SC", "Noto Sans SC", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
 }
 
-#about h1 {
-  font-size: 1.75rem;
-  font-weight: 800;
-  line-height: 1.2;
+#about-jump:hover,
+#about-jump:focus-visible {
+  color: #f3e6d0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#about-jump:focus-visible {
+  outline: 2px solid #e07a3d;
+  outline-offset: 2px;
+}
+
+#about-jump[hidden],
+body.playing #about-jump {
+  display: none !important;
+}
+
+#about.site-main {
+  max-width: 40rem;
+  color: #f3e6d0;
+  background: #1c1712;
+  font-family: "PingFang SC", "Noto Sans SC", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+  line-height: 1.6;
+  scroll-margin-top: 12px;
+}
+
+#about.site-main h1,
+#about.site-main h2,
+#about.site-main p,
+#about.site-main li {
+  overflow-wrap: anywhere;
+}
+
+#about.site-main p,
+#about.site-main li {
   margin-bottom: 14px;
 }
 
-#about p {
-  font-size: 1rem;
-  line-height: 1.55;
-  margin-bottom: 14px;
-  color: rgba(243, 230, 208, 0.88);
+#about.site-main ul {
+  margin: 0 0 14px;
+  padding-left: 1.2em;
 }
 
-#about p:last-child {
-  margin-bottom: 0;
+#about .about-en {
+  margin-top: 36px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(243, 230, 208, 0.16);
+}
+
+.site-footer {
+  color: #f3e6d0;
+  font-family: "PingFang SC", "Noto Sans SC", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+body:not(.playing) .site-footer {
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
 }
 
 body.overlay-open {
@@ -153,7 +204,7 @@ body.overlay-open {
   user-select: text;
 }
 
-/* 画布藏起来后，#stage 是透明的，半透明弹窗会露出 #about 里给搜索引擎的介绍。保持绘制，只挡住点击。 */
+/* 改名等 HTML 弹窗打开时，画布继续画，点击交给弹窗。 */
 body.overlay-open #scene,
 body.overlay-open #game {
   pointer-events: none;

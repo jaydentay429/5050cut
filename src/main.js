@@ -3,7 +3,7 @@
  * 浏览器专属 API（window / document / canvas）集中在这一文件、input.js 和 audio.js。
  */
 import { Game } from "./game.js?v=152";
-import { attachInput } from "./input.js?v=80";
+import { attachInput } from "./input.js?v=81";
 import { catalogTypes } from "./object.js?v=86";
 import { prefetchTheme, preloadFruitAssets } from "./fruitAssets.js?v=126";
 import { createScene } from "./scene.js?v=107";
@@ -37,6 +37,38 @@ function armPrivacyClickGuard() {
     },
     true,
   );
+}
+
+function scrollPageToTop() {
+  const top = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  if (top <= 0) return false;
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  return true;
+}
+
+/**
+ * 菜单以外的状态锁住页面滚动。类名 playing 按首页约定，
+ * 商店、排行、图鉴和结算同样算在里面。进入这些状态时如果已经往下滚过，先回到顶部。
+ */
+function syncPlayScroll(game, onLockChange) {
+  const playing = game.state !== "menu";
+  const jump = document.getElementById("about-jump");
+  if (jump) jump.hidden = playing;
+  const body = document.body;
+  if (!playing) {
+    if (body.classList.contains("playing")) {
+      body.classList.remove("playing");
+      onLockChange?.();
+    }
+    return;
+  }
+  scrollPageToTop();
+  if (!body.classList.contains("playing")) {
+    body.classList.add("playing");
+    onLockChange?.();
+  }
 }
 
 function syncPrivacyLink(game) {
@@ -102,11 +134,18 @@ async function boot() {
 
   let lastTime = 0;
 
+  const stageEl = document.getElementById("stage");
+
+  let sized = "";
+
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.scene.maxPixelRatio ?? 1.5);
     const vv = window.visualViewport;
-    const width = Math.round(vv?.width || window.innerWidth);
-    const height = Math.round(vv?.height || window.innerHeight);
+    const width = Math.max(1, stageEl?.clientWidth || Math.round(vv?.width || window.innerWidth));
+    const height = Math.max(1, stageEl?.clientHeight || Math.round(vv?.height || window.innerHeight));
+    const key = `${width}x${height}x${dpr}`;
+    if (key === sized) return;
+    sized = key;
 
     uiCanvas.width = Math.floor(width * dpr);
     uiCanvas.height = Math.floor(height * dpr);
@@ -123,6 +162,7 @@ async function boot() {
     lastTime = time;
 
     game.update(dt);
+    syncPlayScroll(game, resize);
     syncPrivacyLink(game);
     scene.render();
     game.render(ctx);
@@ -142,6 +182,10 @@ async function boot() {
   window.addEventListener("resize", resize);
   window.addEventListener("orientationchange", resize);
   window.visualViewport?.addEventListener("resize", resize);
+  if (typeof ResizeObserver !== "undefined" && stageEl) {
+    const stageObserver = new ResizeObserver(() => resize());
+    stageObserver.observe(stageEl);
+  }
   document.addEventListener("visibilitychange", () => {
     game.setSuspended(document.hidden);
   });
@@ -164,6 +208,7 @@ async function boot() {
       }
     }
   }
+  syncPlayScroll(game, resize);
   syncPrivacyLink(game);
   hideLoad();
   prefetchTheme("fruit");
