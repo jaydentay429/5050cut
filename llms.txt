@@ -1,0 +1,19 @@
+# 50/50 Cut
+
+> 50/50 Cut（对半切）是一款免费的浏览器 3D 小游戏。运营者是 WebPaws Studio。
+
+## 页面
+
+- [首页](https://5050cut.com/): 打开网页就能玩的对半切
+- [关于](https://5050cut.com/about): 游戏是什么、谁做的、模型和更新记录
+- [联系](https://5050cut.com/contact): 联系邮箱
+- [隐私](https://5050cut.com/privacy): 存档、排行榜、广告和删除方式
+- [条款](https://5050cut.com/terms): 使用条款，中英双语
+- [怎么玩](https://5050cut.com/guide/how-to-play): 操作、连击、摊位、商店和存档
+- [计分](https://5050cut.com/guide/scoring): 基础分公式、连击加成、评级和代币
+- [常见问题](https://5050cut.com/faq): 下载、正中、存档、排行榜、广告和语言
+
+## 联系
+
+WebPaws Studio
+jaydentay429@gmail.com

@@ -40,6 +40,9 @@ const copies = [
   "src",
   "vendor",
   "assets",
+  "guide",
+  "faq.html",
+  "llms.txt",
 ];
 for (const name of copies) {
   const from = path.join(root, name);
@@ -110,6 +113,15 @@ for (const loc of locs) {
 if (missing.length) {
   console.error("sitemap URLs must match an .html file in the Pages output:");
   for (const row of missing) console.error(`  ${row}`);
+  process.exit(1);
+}
+
+try {
+  const llms = await stat(path.join(dist, "llms.txt"));
+  if (!llms.isFile()) throw new Error("not a file");
+  console.log("packed llms.txt", llms.size);
+} catch {
+  console.error("llms.txt must be copied into the Pages output");
   process.exit(1);
 }
 

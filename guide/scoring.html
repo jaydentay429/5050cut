@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>计分 — 50/50 Cut</title>
+    <meta
+      name="description"
+      content="50/50 Cut 的基础分按体积偏差计算：100 乘以（1 减（偏差除以 0.36）的 1.35 次方）再四舍五入。85 分接连击，98 分为精准，从第 2 刀起每层加 12%。"
+    />
+    <link rel="canonical" href="https://5050cut.com/guide/scoring" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/pages.css?v=2" />
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6491556738882383"
+      crossorigin="anonymous"
+    ></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "首页",
+            "item": "https://5050cut.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "计分",
+            "item": "https://5050cut.com/guide/scoring"
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "计分",
+        "url": "https://5050cut.com/guide/scoring",
+        "inLanguage": "zh-Hans",
+        "dateModified": "2026-10-05",
+        "publisher": {
+          "@type": "Organization",
+          "name": "WebPaws Studio",
+          "url": "https://webpawsstudio.com"
+        }
+      }
+    </script>
+  </head>
+  <body class="site-page">
+    <header class="site-header">
+      <nav class="site-nav" aria-label="主导航">
+        <a class="site-logo" href="/">50/50 Cut</a>
+        <a class="site-play" href="/">开始游戏</a>
+      </nav>
+    </header>
+    <main class="site-main">
+      <nav class="crumbs" aria-label="面包屑">
+        <a href="/">首页</a>
+        <span aria-current="page">计分</span>
+      </nav>
+      <h1>计分</h1>
+      <p>切中物体之后，这一刀先有一个基础分，再按连击加成放进总分。下面的数字都来自游戏里的计分设置和计分函数，并用同一套式子把偏差逐档算了一遍。操作、摊位和商店在<a href="/guide/how-to-play">怎么玩</a>。</p>
+      <h2>基础分</h2>
+      <p>偏差是左右两半体积占比和 0.5 的差的绝对值。左右各一半时偏差是 0，体积全部偏到一边时偏差是 0.5。基础分在偏差还没到 0.36 时，按下面这行计算，结果用四舍五入收成整数，用的是 JavaScript 的 Math.round：</p>
+      <p>基础分 = round(100 × (1 − (偏差 / 0.36) ^ 1.35))</p>
+      <p>偏差达到或超过 0.36，函数直接返回 0，不再做乘方。满分 100、零分线 0.36、乘方 1.35，这三个数写在计分设置里。偏差为 0 时基础分是 100。用同一公式做二分，基础分从 100 掉到 99 的位置约在偏差 0.007109；从 99 掉到 98 约在 0.016042；从 98 掉到 97 约在 0.023420。这些是四舍五入之后的台阶，不是另外一条公式。</p>
+      <p>还有一处四舍五入会比 0.36 更早变成 0 分。偏差约到 0.358666 时，乘方那一行已经四舍五入成 0；偏差 0.359999 同样是 0。所以零分有两道：一道是还没到 0.36 就因取整变成 0，一道是偏差大于等于 0.36 时函数直接返回 0。</p>
+      <p>准星打开时，公式看到的偏差可能被改过。只有这一刀已经用了准星，才会做这件事。笔画两端的屏幕横坐标离正中参考线的平均距离不超过 16 像素，或者左右体积占比离 0.5 不超过 0.025，左右占比会被改成各 0.5。公式于是看到偏差 0，基础分是 100。这一刀结算后准星关闭。没买准星、或者这一刀没有打开准星时，不会有这步改写。</p>
+      <p>没切到物体不走上面的公式。那一刀基础分按 0 记，本局结束，也不写入图鉴。短于 28 像素的滑动在更早的一步就被丢掉，不进入计分。</p>
+      <h2>偏差和基础分</h2>
+      <p>下表从偏差 0.00 到 0.36，每 0.01 一档，用上面的函数算出基础分。能否连击只看基础分是不是达到 85，和后面的加成无关。0.10 这一档已经是 82，连击接不上。</p>
+      <table class="score-table">
+        <caption>偏差每 0.01 对应的基础分。0.36 以及更大直接是 0 分。</caption>
+        <thead>
+          <tr>
+            <th>偏差</th>
+            <th>基础分</th>
+            <th>能否连击</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>0.00</td><td>100</td><td>能</td></tr>
+          <tr><td>0.01</td><td>99</td><td>能</td></tr>
+          <tr><td>0.02</td><td>98</td><td>能</td></tr>
+          <tr><td>0.03</td><td>97</td><td>能</td></tr>
+          <tr><td>0.04</td><td>95</td><td>能</td></tr>
+          <tr><td>0.05</td><td>93</td><td>能</td></tr>
+          <tr><td>0.06</td><td>91</td><td>能</td></tr>
+          <tr><td>0.07</td><td>89</td><td>能</td></tr>
+          <tr><td>0.08</td><td>87</td><td>能</td></tr>
+          <tr><td>0.09</td><td>85</td><td>能</td></tr>
+          <tr><td>0.10</td><td>82</td><td>不能</td></tr>
+          <tr><td>0.11</td><td>80</td><td>不能</td></tr>
+          <tr><td>0.12</td><td>77</td><td>不能</td></tr>
+          <tr><td>0.13</td><td>75</td><td>不能</td></tr>
+          <tr><td>0.14</td><td>72</td><td>不能</td></tr>
+          <tr><td>0.15</td><td>69</td><td>不能</td></tr>
+          <tr><td>0.16</td><td>67</td><td>不能</td></tr>
+          <tr><td>0.17</td><td>64</td><td>不能</td></tr>
+          <tr><td>0.18</td><td>61</td><td>不能</td></tr>
+          <tr><td>0.19</td><td>58</td><td>不能</td></tr>
+          <tr><td>0.20</td><td>55</td><td>不能</td></tr>
+          <tr><td>0.21</td><td>52</td><td>不能</td></tr>
+          <tr><td>0.22</td><td>49</td><td>不能</td></tr>
+          <tr><td>0.23</td><td>45</td><td>不能</td></tr>
+          <tr><td>0.24</td><td>42</td><td>不能</td></tr>
+          <tr><td>0.25</td><td>39</td><td>不能</td></tr>
+          <tr><td>0.26</td><td>36</td><td>不能</td></tr>
+          <tr><td>0.27</td><td>32</td><td>不能</td></tr>
+          <tr><td>0.28</td><td>29</td><td>不能</td></tr>
+          <tr><td>0.29</td><td>25</td><td>不能</td></tr>
+          <tr><td>0.30</td><td>22</td><td>不能</td></tr>
+          <tr><td>0.31</td><td>18</td><td>不能</td></tr>
+          <tr><td>0.32</td><td>15</td><td>不能</td></tr>
+          <tr><td>0.33</td><td>11</td><td>不能</td></tr>
+          <tr><td>0.34</td><td>7</td><td>不能</td></tr>
+          <tr><td>0.35</td><td>4</td><td>不能</td></tr>
+          <tr><td>0.36</td><td>0</td><td>不能</td></tr>
+        </tbody>
+      </table>
+      <h2>连击加成</h2>
+      <p>基础分达到 85，连击变为原来的连击再加 1。低于 85，连击变为 0，本局结束。加进总分的数不是基础分本身。层数是连击减 1，再和 0 取较大的那个，所以连击为 1 时层数是 0。得到的分是基础分乘以（1 加层数乘 0.12），再四舍五入。连击的第一刀没有加成。从第二刀起，每一层多 12%：第二刀是 1.12 倍，第三刀是 1.24 倍，第四刀是 1.36 倍，之后照这样加。</p>
+      <p>从连击 0 起，若基础分依次是 100、98、90、85、84，得到的分是：第一刀 100，连击变成 1；第二刀 98 乘 1.12 等于 109.76，四舍五入为 110，连击 2；第三刀 90 乘 1.24 等于 111.6，四舍五入为 112，连击 3；第四刀 85 乘 1.36 等于 115.6，四舍五入为 116，连击 4；第五刀 84 低于 85，得到 84，连击回到 0，本局结束。85 这一档刚刚能接上，84 就不能。</p>
+      <p>连击数另外有一套称号，只改画面上的字，不改分数。连击达到 3 是「连上了」，达到 5 是「手感来了」，达到 8 是「热刀」，达到 12 是「停不下来」，达到 16 是「刀神降临」。没到 3 就没有称号。</p>
+      <h2>这一刀的评价</h2>
+      <p>切中之后，评价看基础分，不看加成后的得分。基础分达到 98，简体界面写「精准！」。英文界面同一档写 Perfect!。代码里的字段名是 perfectScore，数值是 98。达到 85 但不到 98，写「漂亮」。达到 70 但不到 85，写「还行」。大于 0 但不到 70，写「偏了」。基础分为 0，写「没切中」。70 这一档写在评价函数里，没有放进计分设置那一组数字。用二分看表外的位置：基础分从 85 掉到 84 约在偏差 0.090479，从 70 掉到 69 约在偏差 0.149383。</p>
+      <h2>本局评级</h2>
+      <p>一局结束时的头衔看两个数：本局最高连击，以及本局最高的一刀基础分。最佳一刀用的是基础分，不是加成后加进总分的那个数。判断顺序是固定的，先符合上面一档就不再往下看。</p>
+      <p>最高连击达到 20，或者最高连击达到 12 并且最佳基础分达到 99，头衔是「传说」。最高连击达到 12，但没满足传说那一档，是「宗师」。最高连击达到 8，或者最佳基础分达到 99，是「神刀」。最高连击达到 4，是「刀客」。最高连击达到 1，是「学徒」。一刀连击都没有，是「新刀」。这里的 99 和评价里的 98 不是同一个门槛：98 分已经显示「精准！」，但单靠最佳一刀走进「神刀」或帮 12 连击走进「传说」，最佳基础分要到 99。</p>
+      <h2>代币</h2>
+      <p>代币和基础分分开记。连续的基础分达到 98，每满 10 刀给 1 枚代币。中间任何一刀低于 98，这串计数归零。连续的基础分正好是 100，每满 12 刀给 1 枚代币，并且再试刀的库存加 1。中间任何一刀不是 100，这一串归零。99 分可以维持 98 的那一串，但不能维持 100 的那一串。连击断开或没切中时，这两串都会归零。</p>
+      <p>商店标价是：再试刀 5 币，准星 2 币，点名 10 币。点名时如果选的是隐藏款，程序再扣的是 15 减 10，也就是 5 币，而且同一天只能这样指定一次隐藏款。选择列表上的句子写着「隐藏款另加 15 币，每天一次」，15 是标价表里的那一档，不是这一下多扣的币数。分享到 Facebook、X 或 Threads，每个渠道每天第一次点按钮加 2 枚代币，同时打开分享页；程序不检查分享有没有发出去。商店里的看广告，只有激励视频看完才加 3 枚代币。没有广告或没看完，不加币，也不扣已有的代币、分数和图鉴。</p>
+      <p class="site-updated">最后更新：2026-10-05</p>
+    </main>
+    <footer class="site-footer">
+      <nav class="site-footer-nav" aria-label="页脚">
+        <a href="/">首页</a>
+        <a href="/about">关于</a>
+        <a href="/contact">联系</a>
+        <a href="/privacy">隐私</a>
+        <a href="/terms">条款</a>
+        <a href="/guide/how-to-play">玩法</a>
+        <a href="/guide/scoring">计分</a>
+        <a href="/faq">常见问题</a>
+      </nav>
+      <p class="site-copy">© 2026 WebPaws Studio</p>
+    </footer>
+  </body>
+</html>

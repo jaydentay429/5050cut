@@ -124,3 +124,66 @@ body.site-page {
 .site-updated {
   margin-top: 28px;
 }
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 8px;
+  min-height: 44px;
+}
+
+.crumbs a,
+.crumbs [aria-current="page"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 8px;
+}
+
+.crumbs a + a::before,
+.crumbs a + [aria-current="page"]::before {
+  content: "/";
+  margin: 0 8px;
+  color: #f3e6d0;
+  opacity: 0.55;
+}
+
+.site-main figure {
+  margin: 16px 0 20px;
+}
+
+.guide-shot {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+}
+
+.site-main figcaption {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.85;
+  overflow-wrap: anywhere;
+}
+
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 20px;
+}
+
+.score-table th,
+.score-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(243, 230, 208, 0.16);
+  overflow-wrap: anywhere;
+}
+
+.score-table th {
+  font-weight: 700;
+}
