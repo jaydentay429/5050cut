@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hans">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Privacy — 50/50 Cut</title>
+    <title>隐私政策 — 50/50 Cut</title>
     <meta
       name="description"
-      content="How 50/50 Cut handles your data: what is collected, how it is used, and how to contact us."
+      content="本页说明 50/50 Cut 收集什么、为什么收集：进度存在这台浏览器的本地存储里，排行榜保存哪些字段，Google 广告和第三方 cookie，退出个性化广告的链接，删除排行榜记录的步骤，以及联系邮箱。这不是法律意见。"
     />
     <link rel="canonical" href="https://5050cut.com/privacy" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -16,6 +16,42 @@
       src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6491556738882383"
       crossorigin="anonymous"
     ></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "首页",
+            "item": "https://5050cut.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "隐私政策",
+            "item": "https://5050cut.com/privacy"
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "隐私政策",
+        "url": "https://5050cut.com/privacy",
+        "inLanguage": "zh-Hans",
+        "dateModified": "2026-10-06",
+        "publisher": {
+          "@type": "Organization",
+          "@id": "https://webpawsstudio.com/#org",
+          "name": "WebPaws Studio",
+          "url": "https://webpawsstudio.com"
+        }
+      }
+    </script>
   </head>
   <body class="site-page">
     <header class="site-header">
@@ -25,20 +61,41 @@
       </nav>
     </header>
     <main class="site-main">
-      <h1>Privacy</h1>
-      <p>This page explains what 50/50 Cut (5050cut.com) collects and why. This is not legal advice.</p>
-      <h2>Saved progress</h2>
-      <p>High score, album, tokens, mute, and leaderboard nickname are stored in your browser's localStorage. There is no sign-in. In the Rename (改名) dialog you can export a save code and import it on another device to move the save there. The code contains the leaderboard id, which is the account key; do not send it to anyone. Import overwrites the save on that device and replaces its leaderboard id. That device's previous leaderboard row stays on the board. Saves from two devices still cannot be merged into one: import overwrites, it does not merge.</p>
-      <h2>Leaderboard</h2>
-      <p>When you submit a score, the server uses the country of the IP (Cloudflare) to write that country's board and the global board. It stores a random device id, the nickname you set, an optional achievement title, the score, and the country code. You can change the nickname yourself, 2–12 characters. A title can only be the name of an achievement you have already unlocked. Do not enter a real name, phone number, or URL.</p>
-      <h2>Ads</h2>
-      <p>Production ads use Google web game ads (Ad Placement API). There is no prompt first. A rewarded video loads and plays only when you tap "Watch ad" in the shop, and tokens are given only after you finish watching. If no ad is available, you are told, and progress is not deducted.</p>
-      <p>Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this site or other websites. Google's use of advertising cookies enables it and its partners to serve ads based on your visits to this site and/or other sites on the Internet. You can opt out of personalized advertising in <a href="https://adssettings.google.com">Google Ads Settings</a> or <a href="https://myadcenter.google.com">My Ad Center</a>. You can also opt out of a third-party vendor's use of cookies for personalized advertising at <a href="https://www.aboutads.info/choices">www.aboutads.info/choices</a>. See <a href="https://policies.google.com/technologies/ads">how Google uses advertising cookies</a>.</p>
-      <h2>Children</h2>
-      <p>This game is for general casual players and is not designed specifically for children under 13. Do not let young children enter identifying information on the leaderboard.</p>
-      <h2>Deletion</h2>
-      <p>Clearing the browser's site data removes the local save and creates a new leaderboard id. Copy the id before you clear.</p>
-      <p>To delete a leaderboard entry, on the main menu tap Board (排行), then tap Rename (改名). Copy the leaderboard id in that dialog, and email it to <!--email_off--><a href="mailto:jaydentay429@gmail.com">jaydentay429@gmail.com</a><!--/email_off--> with a request to remove it.</p>
+      <nav class="crumbs" aria-label="面包屑">
+        <a href="/">首页</a>
+        <span aria-current="page">隐私政策</span>
+      </nav>
+      <h1>隐私政策</h1>
+      <p>本页说明 50/50 Cut（5050cut.com）收集哪些内容，以及为什么收集。这不是法律意见。</p>
+      <h2>已保存的进度</h2>
+      <p>最高分、图鉴、代币、静音和排行榜昵称，存在你浏览器的 localStorage 里。没有登录。在「改名」对话框里可以导出一段存档码，也可以在另一台设备上导入，把存档搬过去。存档码里含有排行榜 id，这个 id 等于账户钥匙，不要发给任何人。导入会覆盖那台设备上的存档，并换掉它的排行榜 id。那台设备原来的排行榜那一行会留在榜上。两台设备的存档仍然不能合并成一份：导入是覆盖，不是合并。</p>
+      <h2>排行榜</h2>
+      <p>提交分数时，服务器按 IP 所在的国家（Cloudflare）写入该国榜和全球榜。它保存随机设备 id、你设置的昵称、一个可选的成就头衔、分数和国家代码。昵称可以自己改，长度是 2 到 12 个字符。头衔只能是你已经解锁的成就名称。不要填写真实姓名、电话号码或网址。</p>
+      <h2>广告</h2>
+      <p>正式环境的广告使用 Google 的网页游戏广告（Ad Placement API）。事先没有提示。激励视频只在你于商店点击「看广告」时才加载和播放，只有看完才会给你代币。如果没有广告，会告诉你，并且不扣除进度。</p>
+      <p>包括 Google 在内的第三方供应商使用 cookie，根据你以前访问本站或其他网站的记录来投放广告。Google 使用广告 cookie，使它和它的合作伙伴能够根据你访问本站和／或互联网上其他网站的情况投放广告。你可以在 <a href="https://adssettings.google.com">Google 广告设置</a> 或 <a href="https://myadcenter.google.com">我的广告中心</a> 退出个性化广告。你也可以在 <a href="https://www.aboutads.info/choices">www.aboutads.info/choices</a> 退出第三方供应商使用 cookie 投放个性化广告。参见 <a href="https://policies.google.com/technologies/ads">Google 如何使用广告 cookie</a>。</p>
+      <h2>儿童</h2>
+      <p>这款游戏面向一般休闲玩家，并不是专为 13 岁以下儿童设计的。不要让年幼的孩子在排行榜上填写可以识别身份的信息。</p>
+      <h2>删除</h2>
+      <p>清除浏览器的站点数据会去掉本地存档，并生成一个新的排行榜 id。清除之前先把这个 id 复制下来。</p>
+      <p>要删除一条排行榜记录，在主菜单点「排行」，再点「改名」。复制那个对话框里的排行榜 id，发邮件到 <!--email_off--><a href="mailto:jaydentay429@gmail.com">jaydentay429@gmail.com</a><!--/email_off-->，写明要求删除它。</p>
+      <section lang="en">
+        <h2>Privacy (English)</h2>
+        <p>This page explains what 50/50 Cut (5050cut.com) collects and why. This is not legal advice.</p>
+        <h2>Saved progress</h2>
+        <p>High score, album, tokens, mute, and leaderboard nickname are stored in your browser's localStorage. There is no sign-in. In the Rename (改名) dialog you can export a save code and import it on another device to move the save there. The code contains the leaderboard id, which is the account key; do not send it to anyone. Import overwrites the save on that device and replaces its leaderboard id. That device's previous leaderboard row stays on the board. Saves from two devices still cannot be merged into one: import overwrites, it does not merge.</p>
+        <h2>Leaderboard</h2>
+        <p>When you submit a score, the server uses the country of the IP (Cloudflare) to write that country's board and the global board. It stores a random device id, the nickname you set, an optional achievement title, the score, and the country code. You can change the nickname yourself, 2–12 characters. A title can only be the name of an achievement you have already unlocked. Do not enter a real name, phone number, or URL.</p>
+        <h2>Ads</h2>
+        <p>Production ads use Google web game ads (Ad Placement API). There is no prompt first. A rewarded video loads and plays only when you tap "Watch ad" in the shop, and tokens are given only after you finish watching. If no ad is available, you are told, and progress is not deducted.</p>
+        <p>Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this site or other websites. Google's use of advertising cookies enables it and its partners to serve ads based on your visits to this site and/or other sites on the Internet. You can opt out of personalized advertising in <a href="https://adssettings.google.com">Google Ads Settings</a> or <a href="https://myadcenter.google.com">My Ad Center</a>. You can also opt out of a third-party vendor's use of cookies for personalized advertising at <a href="https://www.aboutads.info/choices">www.aboutads.info/choices</a>. See <a href="https://policies.google.com/technologies/ads">how Google uses advertising cookies</a>.</p>
+        <h2>Children</h2>
+        <p>This game is for general casual players and is not designed specifically for children under 13. Do not let young children enter identifying information on the leaderboard.</p>
+        <h2>Deletion</h2>
+        <p>Clearing the browser's site data removes the local save and creates a new leaderboard id. Copy the id before you clear.</p>
+        <p>To delete a leaderboard entry, on the main menu tap Board (排行), then tap Rename (改名). Copy the leaderboard id in that dialog, and email it to <!--email_off--><a href="mailto:jaydentay429@gmail.com">jaydentay429@gmail.com</a><!--/email_off--> with a request to remove it.</p>
+      </section>
+      <p class="site-updated">最后更新：2026-10-06</p>
     </main>
     <footer class="site-footer">
       <nav class="site-footer-nav" aria-label="页脚">

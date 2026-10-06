@@ -57,13 +57,14 @@
             "@type": "Organization",
             "@id": "https://webpawsstudio.com/#org",
             "name": "WebPaws Studio",
-            "url": "https://webpawsstudio.com"
+            "url": "https://webpawsstudio.com",
+            "email": "jaydentay429@gmail.com"
           }
         ]
       }
     </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/style.css?v=14" />
+    <link rel="stylesheet" href="/style.css?v=15" />
     <link rel="stylesheet" href="/pages.css?v=2" />
     <link rel="preload" href="/vendor/draco/draco_decoder.wasm" as="fetch" crossorigin />
     <script
@@ -79,6 +80,7 @@
         }
       }
     </script>
+    <noscript><style>#boot-load{display:none}#about-jump{top:auto;bottom:24px}</style></noscript>
   </head>
   <body>
     <div id="stage">
@@ -92,6 +94,7 @@
           <div id="boot-load-bar"></div>
         </div>
       </div>
+      <a id="privacy-link" href="/privacy" data-i18n="privacy">Privacy</a>
     </div>
     <main id="about" class="site-main">
       <h1>50/50 Cut 对半切：免费在线 3D 切东西小游戏</h1>
@@ -178,7 +181,6 @@
       </nav>
       <p class="site-copy">© 2026 WebPaws Studio</p>
     </footer>
-    <a id="privacy-link" href="/privacy" data-i18n="privacy">Privacy</a>
     <script>
       window.addEventListener("error", function (event) {
         if (document.getElementById("boot-error")) return;
@@ -271,6 +273,6 @@
         <button type="button" class="ghost" data-name-cancel data-i18n="cancel">取消</button>
       </form>
     </div>
-    <script type="module" src="/src/main.js?v=155"></script>
+    <script type="module" src="/src/main.js?v=156"></script>
   </body>
 </html>
