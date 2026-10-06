@@ -80,7 +80,7 @@ html[data-lang="en"] {
 }
 
 #boot-load {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 20;
   display: flex;
@@ -115,6 +115,10 @@ html[data-lang="en"] {
   width: 0;
   height: 100%;
   background: #e07a3d;
+}
+
+#boot-load.is-failed {
+  background: rgba(28,23,18,.85);
 }
 
 #about-jump {
@@ -493,7 +497,7 @@ body.overlay-open #game {
 }
 
 #privacy-link {
-  position: fixed;
+  position: absolute;
   z-index: 4;
   right: max(12px, env(safe-area-inset-right, 0px));
   bottom: max(8px, env(safe-area-inset-bottom, 0px));

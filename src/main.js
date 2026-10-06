@@ -225,5 +225,10 @@ async function boot() {
 
 boot().catch((err) => {
   console.error(err);
-  if (loadText) loadText.textContent = t("bootFail");
+  if (loadText) {
+    loadText.textContent = t("bootFail");
+    // 锁住，避免语言刷新把失败文案写回加载中。
+    loadText.dataset.lock = "1";
+  }
+  loadRoot?.classList.add("is-failed");
 });
